@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "pasti": {
+      "title": "PASTI",
+      "description": "Information about a PASTI school",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "headTeacher": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["name", "headTeacher", "phone"]
+    },
+    "safetyCheck": {
+      "title": "SafetyCheck",
+      "description": "Safety compliance check for a PASTI",
+      "type": "object",
+      "properties": {
+        "pastiId": { "type": "string" },
+        "emergencyDoor": { "type": "boolean" },
+        "exitLight": { "type": "boolean" },
+        "lampuKecemasan": { "type": "boolean" },
+        "extinguisherExpiryDate": { "type": "string", "format": "date" },
+        "fireExtinguishers": { "type": "array" }
+      },
+      "required": ["pastiId", "emergencyDoor", "exitLight", "lampuKecemasan", "extinguisherExpiryDate"]
+    }
+  },
+  "firestore": {
+    "/pastis/{pastiId}": {
+      "schema": "pasti",
+      "description": "Collection of PASTI schools"
+    },
+    "/pastis/{pastiId}/safetyChecks/{checkId}": {
+      "schema": "safetyCheck",
+      "description": "Safety checklists for each PASTI"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == 'muhaiminzeeismail@gmail.com'; }
+
+    match /pastis/{pastiId} {
+      allow read: if true; 
+      allow create, delete: if isAdmin();
+      allow update: if true;
+      
+      match /safetyChecks/{checkId} {
+        allow create: if true; 
+        allow read, delete: if isAdmin();
+      }
+    }
+
+    match /submissions/{submissionId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+    }
+    
+    match /visitorLogs/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /activeViewers/{sessionId} {
+      allow read, write: if true;
+    }
+    
+    match /siteStats/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /adminNotifications/{notificationId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Global safety net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

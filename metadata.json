@@ -1,0 +1,6 @@
+{
+  "name": "PASTI Safety Monitor",
+  "description": "A system to monitor and manage safety compliance for PASTI Kuala Langat, including fire safety checklists, expiry date reminders, and teacher contact directories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
