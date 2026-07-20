@@ -16,8 +16,9 @@ import AdminDataManagement from './components/AdminDataManagement';
 import AdminNotificationToast from './components/AdminNotificationToast';
 import PublicReportsList from './components/PublicReportsList';
 import VisitorStats from './components/VisitorStats';
+import UserGuide from './components/UserGuide';
 import { Pasti } from './types';
-import { ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Loader2, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [showOwnerWelcomeModal, setShowOwnerWelcomeModal] = useState(false);
-  const [view, setView] = useState<'dashboard' | 'feedback' | 'manage' | 'telegrams' | 'extinguisher-monitor' | 'reports-list' | 'admin'>('feedback');
+  const [view, setView] = useState<'dashboard' | 'feedback' | 'manage' | 'telegrams' | 'extinguisher-monitor' | 'reports-list' | 'admin' | 'guide'>('feedback');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -375,6 +376,12 @@ export default function App() {
                   >
                     📋 Rekod Laporan (Awam)
                   </button>
+                  <button 
+                    onClick={() => { setView('guide'); setIsSidebarOpen(false); }} 
+                    className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'guide' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                  >
+                    📖 Panduan Pengguna
+                  </button>
                   {user && (
                     <>
                       <button 
@@ -472,6 +479,11 @@ export default function App() {
                 {view === 'reports-list' && (
                   <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
                     <PublicReportsList pastis={pastis} submissions={submissions} />
+                  </motion.div>
+                )}
+                {view === 'guide' && (
+                  <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
+                    <UserGuide user={user} isAdmin={!!isAdmin} setView={setView} />
                   </motion.div>
                 )}
                 {user && view === 'admin' && isAdmin && (
