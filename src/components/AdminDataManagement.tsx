@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, getDocs, doc, writeBatch, addDoc, setDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, isUsingCustomFirebase, currentProjectId } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType, isUsingCustomFirebase, currentProjectId } from '../firebase';
 import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield, Download, Upload, Database, Sparkles, CheckCircle2, Key, Copy, Check, Terminal, ExternalLink, FileText, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -132,7 +132,7 @@ export default function AdminDataManagement() {
 
   // Custom confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
-    type: 'owner' | 'active' | 'all';
+    type: 'owner' | 'active' | 'all' | 'notif';
     title: string;
     message: string;
     confirmText: string;
@@ -141,7 +141,7 @@ export default function AdminDataManagement() {
   } | null>(null);
 
   const [viewDataModal, setViewDataModal] = useState(false);
-  const [dbData, setDbData] = useState<{ pastis: any[]; feedbacks: any[] } | null>(null);
+  const [dbData, setDbData] = useState<{ pastis: any[]; submissions: any[] } | null>(null);
   const [isFetchingData, setIsFetchingData] = useState(false);
 
   const handleFetchDbData = async () => {
@@ -149,10 +149,10 @@ export default function AdminDataManagement() {
     setViewDataModal(true);
     try {
       const pastisSnap = await getDocs(collection(db, 'pastis'));
-      const feedbacksSnap = await getDocs(collection(db, 'feedbacks'));
+      const submissionsSnap = await getDocs(collection(db, 'submissions'));
       setDbData({
         pastis: pastisSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        feedbacks: feedbacksSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        submissions: submissionsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
       });
     } catch (err: any) {
       alert("Ralat mengambil data pangkalan data: " + err.message);
@@ -205,7 +205,7 @@ export default function AdminDataManagement() {
     };
   }, []);
 
-  const openConfirmModal = (type: 'owner' | 'active' | 'all') => {
+  const openConfirmModal = (type: 'owner' | 'active' | 'all' | 'notif') => {
     if (type === 'owner') {
       setConfirmModal({
         type,
@@ -232,6 +232,15 @@ export default function AdminDataManagement() {
         confirmText: 'Sahkan Padam Semua',
         badgeStyle: 'bg-rose-100 text-rose-800 border-rose-200',
         btnStyle: 'bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-700 hover:to-red-800 text-white shadow-rose-500/10'
+      });
+    } else if (type === 'notif') {
+      setConfirmModal({
+        type,
+        title: 'Kosongkan Notifikasi Sistem',
+        message: 'Adakah anda pasti mahu memadam SEMUA rekod notifikasi sistem dalam pangkalan data? Tindakan ini tidak boleh diundur.',
+        confirmText: 'Sahkan Padam Notifikasi',
+        badgeStyle: 'bg-amber-100 text-amber-800 border-amber-200',
+        btnStyle: 'bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white shadow-amber-500/10'
       });
     }
   };
@@ -308,6 +317,25 @@ export default function AdminDataManagement() {
         alert("Gagal membersihkan sesi aktif: " + (error as Error).message);
       } finally {
         setIsResettingActive(false);
+      }
+    } else if (type === 'notif') {
+      setIsResettingNotif(true);
+      setStatusMessage(null);
+      try {
+        const q = query(collection(db, 'adminNotifications'));
+        const snap = await getDocs(q);
+        const batch = writeBatch(db);
+        snap.docs.forEach(d => {
+          batch.delete(d.ref);
+        });
+        await batch.commit();
+        setStatusMessage("Semua notifikasi sistem telah berjaya dipadamkan.");
+        setTimeout(() => setStatusMessage(null), 5000);
+      } catch (error) {
+        console.error(error);
+        alert("Gagal memadam notifikasi: " + (error as Error).message);
+      } finally {
+        setIsResettingNotif(false);
       }
     }
   };
@@ -445,6 +473,8 @@ export default function AdminDataManagement() {
     }
   };
 
+  const [isResettingNotif, setIsResettingNotif] = useState(false);
+
   const [testResult, setTestResult] = useState<{ status: string; ms: number; message: string } | null>(null);
   const handleTestFirebaseConnection = async () => {
     setTestResult(null);
@@ -455,10 +485,14 @@ export default function AdminDataManagement() {
       await setDoc(testRef, { timestamp: new Date().toISOString() });
       const endTime = performance.now();
       const timeMs = Math.round(endTime - startTime);
+      
+      // Determine logged in user
+      const currentUserEmail = auth.currentUser ? auth.currentUser.email : 'Mod Awam';
+      
       setTestResult({
         status: 'SUCCESS',
         ms: timeMs,
-        message: `Sambungan ke pangkalan data berjaya! (Respons: ${timeMs}ms)`
+        message: `Sambungan ke pangkalan data berjaya! Log masuk sebagai: ${currentUserEmail} (Respons: ${timeMs}ms)`
       });
     } catch (err: any) {
       const endTime = performance.now();
@@ -859,6 +893,17 @@ export default function AdminDataManagement() {
           >
             <Trash2 size={13} className={isResettingAll ? "animate-spin" : ""} />
             {isResettingAll ? "Eksport & Bersih..." : "Kosongkan Semua Log"}
+          </button>
+
+          {/* Reset Notifications */}
+          <button
+            disabled={isResettingNotif}
+            onClick={() => openConfirmModal('notif')}
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 disabled:opacity-50 text-white font-extrabold text-xs py-2 px-3.5 rounded-xl cursor-pointer transition-all shadow-md shadow-amber-600/15"
+            title="Padam Semua Notifikasi Sistem"
+          >
+            <Trash2 size={13} className={isResettingNotif ? "animate-spin" : ""} />
+            {isResettingNotif ? "Memadam..." : "Kosongkan Notifikasi"}
           </button>
         </div>
       </div>

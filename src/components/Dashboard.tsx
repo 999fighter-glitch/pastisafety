@@ -16,7 +16,8 @@ import {
   Sparkles,
   Copy,
   Check,
-  Trash
+  Trash,
+  Image
 } from 'lucide-react';
 import ReportStatus from './ReportStatus';
 import { Pasti, Submission } from '../types';
@@ -43,6 +44,10 @@ export default function Dashboard({ isAdmin, pastis, submissions, onUpdateStatus
   // WhatsApp reminder logic state
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
   const [selectedIssueTypes, setSelectedIssueTypes] = useState<Set<1 | 2 | 3>>(new Set([1]));
+
+  // Photo Gallery State
+  const [photoGallerySub, setPhotoGallerySub] = useState<Submission | null>(null);
+
 
   // Group / Bulk selection states
   const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
@@ -403,6 +408,7 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
                 <th className="p-3 font-semibold text-center w-36">Lampu Ruang</th>
                 <th className="p-3 font-semibold text-center w-40">Notifikasi Diterima</th>
                 <th className="p-3 font-semibold text-center">Pemadam (Exp)</th>
+                {isAdmin && <th className="p-3 font-semibold text-center w-14">Gambar/Foto</th>}
                 <th className="p-3 font-semibold text-center w-14">Hantar WA</th>
                 {isAdmin && <th className="p-3 font-semibold text-center w-14">Admin</th>}
               </tr>
@@ -410,7 +416,7 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
             <tbody className="text-xs divide-y divide-slate-100">
               {filteredSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={isAdmin ? 10 : 8} className="p-8 text-center text-slate-400 italic">
                     Tiada rekod saringan dijumpai.
                   </td>
                 </tr>
@@ -548,6 +554,18 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
                           )}
                         </div>
                       </td>
+
+                      {isAdmin && (
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => setPhotoGallerySub(sub)}
+                            className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer inline-flex items-center justify-center shadow-sm"
+                            title="Papar Gambar"
+                          >
+                            <Image size={14} />
+                          </button>
+                        </td>
+                      )}
 
                       {/* WhatsApp Reminder Trigger Icon */}
                       <td className="p-3 text-center">
@@ -880,6 +898,154 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
                   >
                     {isDeleting ? 'Memadam...' : 'Ya, Padam'}
                   </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Photo Gallery Modal */}
+        <AnimatePresence>
+          {photoGallerySub && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setPhotoGallerySub(null)}>
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 rounded-2xl max-w-4xl w-full border border-slate-700 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              >
+                <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+                  <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                    <Image size={16} className="text-blue-400" />
+                    Galeri Foto: {photoGallerySub.name}
+                  </h3>
+                  <button 
+                    onClick={() => setPhotoGallerySub(null)}
+                    className="text-slate-400 hover:text-white p-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Emergency Door Photos */}
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col items-center">
+                      <h4 className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-3 w-full text-center pb-2 border-b border-slate-700/50">Pintu Kecemasan</h4>
+                      <div className="grid grid-cols-2 gap-4 w-full">
+                        {photoGallerySub.emergencyDoorsList && photoGallerySub.emergencyDoorsList.length > 0 ? (
+                          photoGallerySub.emergencyDoorsList.map((item, idx) => (
+                            <div key={idx} className="flex flex-col gap-2">
+                              {item.photoUrl ? (
+                                <a href={item.photoUrl} target="_blank" rel="noreferrer">
+                                  <img src={item.photoUrl} alt={item.label} className="w-full h-32 object-cover rounded-lg border border-slate-600 hover:border-blue-400 transition-colors shadow-lg" />
+                                </a>
+                              ) : (
+                                <div className="w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                                  <Image size={24} className="opacity-20 mb-1" />
+                                  <span className="text-[10px] font-medium leading-tight">Tiada Gambar</span>
+                                </div>
+                              )}
+                              <span className="text-[10px] text-slate-400 font-mono text-center truncate">{item.label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                            <Image size={24} className="opacity-20 mb-1" />
+                            <span className="text-xs font-medium">Tiada Gambar Diunggah</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Exit Light Photos */}
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col items-center">
+                      <h4 className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-3 w-full text-center pb-2 border-b border-slate-700/50">Lampu Keluar (EXIT)</h4>
+                      <div className="grid grid-cols-2 gap-4 w-full">
+                        {photoGallerySub.exitLightsList && photoGallerySub.exitLightsList.length > 0 ? (
+                          photoGallerySub.exitLightsList.map((item, idx) => (
+                            <div key={idx} className="flex flex-col gap-2">
+                              {item.photoUrl ? (
+                                <a href={item.photoUrl} target="_blank" rel="noreferrer">
+                                  <img src={item.photoUrl} alt={item.label} className="w-full h-32 object-cover rounded-lg border border-slate-600 hover:border-blue-400 transition-colors shadow-lg" />
+                                </a>
+                              ) : (
+                                <div className="w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                                  <Image size={24} className="opacity-20 mb-1" />
+                                  <span className="text-[10px] font-medium leading-tight">Tiada Gambar</span>
+                                </div>
+                              )}
+                              <span className="text-[10px] text-slate-400 font-mono text-center truncate">{item.label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                            <Image size={24} className="opacity-20 mb-1" />
+                            <span className="text-xs font-medium">Tiada Gambar Diunggah</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Emergency Light Photos */}
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col items-center">
+                      <h4 className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-3 w-full text-center pb-2 border-b border-slate-700/50">Lampu Kecemasan Ruang</h4>
+                      <div className="grid grid-cols-2 gap-4 w-full">
+                        {photoGallerySub.lampuKecemasanList && photoGallerySub.lampuKecemasanList.length > 0 ? (
+                          photoGallerySub.lampuKecemasanList.map((item, idx) => (
+                            <div key={idx} className="flex flex-col gap-2">
+                              {item.photoUrl ? (
+                                <a href={item.photoUrl} target="_blank" rel="noreferrer">
+                                  <img src={item.photoUrl} alt={item.label} className="w-full h-32 object-cover rounded-lg border border-slate-600 hover:border-blue-400 transition-colors shadow-lg" />
+                                </a>
+                              ) : (
+                                <div className="w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                                  <Image size={24} className="opacity-20 mb-1" />
+                                  <span className="text-[10px] font-medium leading-tight">Tiada Gambar</span>
+                                </div>
+                              )}
+                              <span className="text-[10px] text-slate-400 font-mono text-center truncate">{item.label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                            <Image size={24} className="opacity-20 mb-1" />
+                            <span className="text-xs font-medium">Tiada Gambar Diunggah</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fire Extinguishers Photos */}
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col items-center">
+                      <h4 className="text-slate-300 text-xs font-bold uppercase tracking-wider mb-3 w-full text-center pb-2 border-b border-slate-700/50">Gambar Pemadam Api</h4>
+                      <div className="grid grid-cols-2 gap-4 w-full">
+                        {photoGallerySub.fireExtinguishers && photoGallerySub.fireExtinguishers.length > 0 ? (
+                          photoGallerySub.fireExtinguishers.map((ext, idx) => (
+                            <div key={idx} className="flex flex-col gap-2">
+                              {ext.photoUrl ? (
+                                <a href={ext.photoUrl} target="_blank" rel="noreferrer">
+                                  <img src={ext.photoUrl} alt={ext.label} className="w-full h-32 object-cover rounded-lg border border-slate-600 hover:border-rose-400 transition-colors shadow-lg" />
+                                </a>
+                              ) : (
+                                <div className="w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                                  <Image size={24} className="opacity-20 mb-1" />
+                                  <span className="text-[10px] font-medium leading-tight">Tiada Gambar</span>
+                                </div>
+                              )}
+                              <span className="text-[10px] text-slate-400 font-mono text-center truncate">{ext.label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 w-full h-32 flex flex-col items-center justify-center text-slate-500 bg-slate-800/80 rounded-lg border border-slate-700 border-dashed text-center p-2">
+                            <Image size={24} className="opacity-20 mb-1" />
+                            <span className="text-xs font-medium">Tiada Gambar Diunggah</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </div>

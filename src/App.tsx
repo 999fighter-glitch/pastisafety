@@ -33,8 +33,10 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Notifications listener
-  const addNotification = async (title: string, message: string) => {
-    setNotifications(prev => [{ title, message, timestamp: Date.now() }, ...prev].slice(0, 50));
+  const addNotification = async (title: string, message: string, noLocalToast: boolean = false) => {
+    if (!noLocalToast) {
+      setNotifications(prev => [{ title, message, timestamp: Date.now() }, ...prev].slice(0, 50));
+    }
     
     // Send to Telegram Bot via server API
     try {
@@ -54,29 +56,6 @@ export default function App() {
         });
     } catch(e) { handleFirestoreError(e, OperationType.CREATE, 'adminNotifications'); }
   };
-
-  useEffect(() => {
-     // Initial load
-     let isFirstLoad = true;
-     const unsub = onSnapshot(collection(db, 'submissions'), (snapshot) => {
-        if (isFirstLoad) {
-            isFirstLoad = false;
-            return;
-        }
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added' || change.type === 'modified') {
-                const data = change.doc.data();
-                const title = change.type === 'added' ? 'Rekod Baru Dihantar' : 'Rekod Dikemaskini';
-                const message = `${title} oleh PASTI: ${data.name || 'Tiada Nama'} pada ${new Date().toLocaleString()}`;
-                
-                addNotification(title, message);
-            }
-        });
-     }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'submissions');
-     });
-     return () => unsub();
-  }, []);
 
   // Simulate loading progress
   useEffect(() => {
@@ -108,14 +87,15 @@ export default function App() {
     // Session start notification (Telegram Bot & Internal Log)
     const sessionStarted = sessionStorage.getItem('session_notified');
     if (!sessionStarted) {
-      addNotification('Sistem Diakses', 'Seorang pengguna baru telah membuka sistem PASTI Kuala Langat.');
+      // Don't show locally to public user, let it just send to Firestore
+      addNotification('Sistem Diakses', 'Seorang pengguna baru telah membuka sistem PASTI Kuala Langat.', true);
       sessionStorage.setItem('session_notified', 'true');
     }
 
     // Check for auth redirect result (useful when popup is blocked on mobile browsers)
     getRedirectResult(auth).then(result => {
       if (result && result.user) {
-        addNotification('Admin Login', `Admin (${result.user.displayName || result.user.email}) telah log masuk ke sistem.`);
+        addNotification('Admin Login', `Admin (${result.user.displayName || result.user.email}) telah log masuk ke sistem.`, false);
       }
     }).catch(err => {
       console.warn('Redirect auth error:', err);
@@ -124,6 +104,31 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, u => setUser(u));
     return () => unsub();
   }, []);
+
+  // Admin Notification real-time listener
+  useEffect(() => {
+    if (!user || user.email !== 'muhaiminzeeismail@gmail.com') return;
+    let isFirstLoad = true;
+    const unsub = onSnapshot(collection(db, 'adminNotifications'), (snapshot) => {
+      if (isFirstLoad) {
+        isFirstLoad = false;
+        return;
+      }
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          // To avoid duplicating toasts that the admin triggered themselves (e.g., 'Rekod Dipadam'), 
+          // we only trigger the local popup if it's 'Sistem Diakses' or similar incoming from other users.
+          if (data.title === 'Sistem Diakses' || data.title === 'Rekod Baru Dihantar' || data.title === 'Rekod Dikemaskini') {
+            setNotifications(prev => [{ title: data.title, message: data.message, timestamp: Date.now() }, ...prev].slice(0, 50));
+          }
+        }
+      });
+    }, (error) => {
+      console.error('Error listening to adminNotifications:', error);
+    });
+    return () => unsub();
+  }, [user]);
 
   useEffect(() => {
     if (user && user.email === 'muhaiminzeeismail@gmail.com') {
@@ -207,9 +212,11 @@ export default function App() {
           ...cleanData,
           updatedAt: new Date()
         });
+        addNotification('Rekod Dikemaskini', `Rekod Dikemaskini oleh PASTI: ${cleanData.name || 'Tiada Nama'} pada ${new Date().toLocaleString()}`);
       } else {
         // Save the safety check submission record
         await addDoc(collection(db, 'submissions'), { ...cleanData, createdAt: new Date() });
+        addNotification('Rekod Baru Dihantar', `Rekod Baru Dihantar oleh PASTI: ${cleanData.name || 'Tiada Nama'} pada ${new Date().toLocaleString()}`);
       }
       
       // 2. Benarkan user awam kemaskini maklumat pasti (Update registered contact/teacher if exists)
@@ -581,8 +588,8 @@ export default function App() {
                 )}
             </div>
           </main>
-          {/* Floating Toasts (Visible to everyone for real-time awareness) */}
-          <AdminNotificationToast notifications={notifications} user={user} />
+          {/* Floating Toasts (Visible to admin only) */}
+          {isAdmin && <AdminNotificationToast notifications={notifications} user={user} />}
 
           {showOwnerWelcomeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">

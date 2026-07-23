@@ -848,10 +848,24 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                         </div>
 
                         {/* Photo Upload for Door */}
-                        <div className="relative shrink-0">
-                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
-                            <Camera size={14} className="text-emerald-600" />
-                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                        <div className="flex gap-2">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg border border-emerald-200 cursor-pointer transition-all shadow-xs">
+                            <Camera size={12} />
+                            <span>Kamera</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('doors', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer transition-all shadow-xs">
+                            <ImageIcon size={12} />
+                            <span>Galeri</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -971,10 +985,24 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                         </div>
 
                         {/* Photo Upload */}
-                        <div className="relative shrink-0">
-                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
-                            <Camera size={14} className="text-emerald-600" />
-                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                        <div className="flex gap-2">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg border border-emerald-200 cursor-pointer transition-all shadow-xs">
+                            <Camera size={12} />
+                            <span>Kamera</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('exits', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer transition-all shadow-xs">
+                            <ImageIcon size={12} />
+                            <span>Galeri</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -1094,10 +1122,24 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                         </div>
 
                         {/* Photo Upload */}
-                        <div className="relative shrink-0">
-                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
-                            <Camera size={14} className="text-amber-600" />
-                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                        <div className="flex gap-2">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-bold rounded-lg border border-amber-200 cursor-pointer transition-all shadow-xs">
+                            <Camera size={12} />
+                            <span>Kamera</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('spaceLights', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer transition-all shadow-xs">
+                            <ImageIcon size={12} />
+                            <span>Galeri</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -1257,19 +1299,35 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-900 text-xs font-bold rounded-lg border border-rose-300 cursor-pointer transition-all">
-                            <Camera size={14} className="text-rose-600" />
-                            <span>{ext.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleFileUploadForItem('extinguishers', ext.id, file);
-                              }}
-                              className="hidden"
-                            />
-                          </label>
+                          <div className="flex gap-2">
+                            <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold rounded-lg border border-rose-200 cursor-pointer transition-all shadow-xs">
+                              <Camera size={12} />
+                              <span>Kamera</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUploadForItem('extinguishers', ext.id, file);
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer transition-all shadow-xs">
+                              <ImageIcon size={12} />
+                              <span>Galeri</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileUploadForItem('extinguishers', ext.id, file);
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
 
                           {formData.fireExtinguishers.length > 1 && (
                             <button

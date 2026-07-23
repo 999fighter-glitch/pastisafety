@@ -98,7 +98,7 @@ export default function AdminNotificationToast({ notifications, user }: Notifica
 
       {/* 2. REAL-TIME SYSTEM ACTIVITY TOAST */}
       <AnimatePresence>
-        {activeToast && !showPublicPopup && (
+        {activeToast && !showPublicPopup && user && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
