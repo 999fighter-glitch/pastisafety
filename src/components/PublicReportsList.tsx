@@ -13,7 +13,8 @@ import {
   AlertTriangle, 
   FlameKindling,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -25,6 +26,7 @@ interface PublicReportsListProps {
 export default function PublicReportsList({ pastis, submissions }: PublicReportsListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedPastiId, setExpandedPastiId] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Clean and parse date
   const parseDate = (dStr: string) => {
@@ -251,7 +253,7 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                         <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                                       </div>
                                       {item.photoUrl && (
-                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={(e) => { e.stopPropagation(); setPreviewImage(item.photoUrl); }} />
                                       )}
                                     </div>
                                   ))}
@@ -263,7 +265,7 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                         <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                                       </div>
                                       {item.photoUrl && (
-                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={(e) => { e.stopPropagation(); setPreviewImage(item.photoUrl); }} />
                                       )}
                                     </div>
                                   ))}
@@ -275,7 +277,7 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                         <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                                       </div>
                                       {item.photoUrl && (
-                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={(e) => { e.stopPropagation(); setPreviewImage(item.photoUrl); }} />
                                       )}
                                     </div>
                                   ))}
@@ -324,7 +326,7 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                       <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-black uppercase tracking-tight">{textStatus}</span>
                                         {ext.photoUrl && (
-                                          <img src={ext.photoUrl} alt={ext.label} className="w-10 h-10 object-cover rounded border border-rose-300 cursor-pointer shadow-3xs" onClick={() => window.open(ext.photoUrl, '_blank')} />
+                                          <img src={ext.photoUrl} alt={ext.label} className="w-10 h-10 object-cover rounded border border-rose-300 cursor-pointer shadow-3xs" onClick={(e) => { e.stopPropagation(); setPreviewImage(ext.photoUrl); }} />
                                         )}
                                       </div>
                                     </div>
@@ -350,6 +352,21 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
           })
         )}
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-10 right-0 text-white bg-slate-800 hover:bg-slate-700 rounded-full p-2 cursor-pointer shadow-lg"
+            >
+              <X size={20} />
+            </button>
+            <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

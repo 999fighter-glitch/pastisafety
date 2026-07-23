@@ -122,6 +122,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
   const [showToast, setShowToast] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [submittedSnapshot, setSubmittedSnapshot] = useState<any>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Status check states
   const [searchQuery, setSearchQuery] = useState('');
@@ -326,7 +327,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
     setFormData({
       id: undefined,
       pastiId: demoPasti ? demoPasti.id : 'demo-pasti-123',
-      name: demoPasti ? demoPasti.name : 'PASTI Demo Al-Amin',
+      name: demoPasti ? `${demoPasti.name} (Demo)` : 'PASTI Demo Al-Amin',
       headTeacher: demoPasti ? demoPasti.headTeacher : 'Ustazah Sarah',
       phone: demoPasti ? demoPasti.phone : '0198765432',
       emergencyDoor: true,
@@ -449,7 +450,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                               <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                             </div>
                             {item.photoUrl && (
-                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs cursor-pointer hover:scale-105 transition-all" onClick={() => setPreviewImage(item.photoUrl)} />
                             )}
                           </div>
                         ))}
@@ -469,7 +470,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                               <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                             </div>
                             {item.photoUrl && (
-                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs cursor-pointer hover:scale-105 transition-all" onClick={() => setPreviewImage(item.photoUrl)} />
                             )}
                           </div>
                         ))}
@@ -489,7 +490,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                               <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                             </div>
                             {item.photoUrl && (
-                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs cursor-pointer hover:scale-105 transition-all" onClick={() => setPreviewImage(item.photoUrl)} />
                             )}
                           </div>
                         ))}
@@ -510,7 +511,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                               <span className="text-[10px] font-bold text-rose-700">Luput: {ext.expiryDate || '-'}</span>
                             </div>
                             {ext.photoUrl && (
-                              <img src={ext.photoUrl} alt={ext.label} className="w-12 h-10 object-cover rounded border border-rose-300 shadow-3xs" />
+                              <img src={ext.photoUrl} alt={ext.label} className="w-12 h-10 object-cover rounded border border-rose-300 shadow-3xs cursor-pointer hover:scale-105 transition-all" onClick={() => setPreviewImage(ext.photoUrl)} />
                             )}
                           </div>
                         ))}
@@ -1350,6 +1351,21 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
           </div>
         )}
       </AnimatePresence>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-10 right-0 text-white bg-slate-800 hover:bg-slate-700 rounded-full p-2 cursor-pointer shadow-lg"
+            >
+              <X size={20} />
+            </button>
+            <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
