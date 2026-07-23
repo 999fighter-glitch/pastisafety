@@ -61,6 +61,59 @@ git push -u origin main
 
 ---
 
+## 💡 SEBAB MENGAPA ANDA TIDAK BOLEH TAMBAH DOMAIN DI PROJECT `sustained-sandbox-w5xj8`
+
+Projek **`sustained-sandbox-w5xj8`** adalah **Projek Sandbox Terurus Khas AI Studio** yang dijana secara automatik oleh platform pembangunan ini untuk persekitaran preview secara percuma. 
+
+Sebab anda tidak dapat menambah Authorized Domain pada projek ini dalam Firebase Console:
+1. **Hak Milik / Ownership**: Projek sandbox ini dimiliki dan diuruskan oleh sistem persekitaran Google AI Studio, bukannya di bawah akaun Google/Firebase peribadi anda (`muhaiminzeeismail@gmail.com`).
+2. **Kebenaran IAM**: Akses Firebase Console akaun peribadi anda tidak mempunyai peranan *Owner* atau *Admin* untuk mengubah suai tetapan keselamatan projek sandbox platform ini.
+
+---
+
+## 🛠️ PENYELESAIAN LENGKAP: Gunakan Projek Firebase Peribadi Anda Sendiri (Percuma)
+
+Untuk hosting berterusan di Netlify dengan sokongan penuh **Google Login** dan **Firestore Database**, sila buat projek Firebase percuma di bawah akaun Gmail anda sendiri:
+
+### Langkah 1: Cipta Projek Firebase Baharu
+1. Layari **[Firebase Console](https://console.firebase.google.com/)** dan log masuk dengan akaun Gmail anda.
+2. Klik **Add project** (Tambah projek) dan beri nama (contoh: `pasti-kuala-langat-db`).
+3. Klik **Continue** sehingga projek selesai dicipta.
+
+### Langkah 2: Aktifkan Firebase Authentication & Firestore
+1. **Authentication**:
+   * Di Firebase Console, pergi ke **Build > Authentication** > Klik **Get started**.
+   * Di tab **Sign-in method**, pilih **Google** > Klik **Enable**.
+   * Pilih e-mel sokongan anda dan klik **Save**.
+   * Pergi ke tab **Settings > Authorized domains** > Klik **Add domain** > Masukkan domain Netlify anda (contoh: `pasti-kuala-langat-system.netlify.app`).
+2. **Firestore Database**:
+   * Pergi ke **Build > Firestore Database** > Klik **Create database**.
+   * Pilih lokasi (contoh: `asia-southeast1` atau `us-central`).
+   * Pilih **Start in test mode** atau muat naik fail `firestore.rules` dari projek ini.
+
+### Langkah 3: Dapatkan Firebase Config & Masukkan ke Netlify Environment Variables
+1. Di Firebase Console, pergi ke **Project Settings** (ikon gear ⚙️ di sebelah kiri atas) > **General**.
+2. Scroll ke bawah ke bahagian *Your apps* > Klik ikon Web (`</>`).
+3. Daftar nama aplikasi (contoh: `Web App Netlify`) dan salin nilai config:
+   * `apiKey`
+   * `authDomain`
+   * `projectId`
+   * `storageBucket`
+   * `messagingSenderId`
+   * `appId`
+4. Buka **Netlify Dashboard > Site Settings > Environment Variables** dan kemaskini kunci berikut dengan nilai dari projek Firebase peribadi anda:
+   * `VITE_FIREBASE_API_KEY`
+   * `VITE_FIREBASE_AUTH_DOMAIN`
+   * `VITE_FIREBASE_PROJECT_ID`
+   * `VITE_FIREBASE_STORAGE_BUCKET`
+   * `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   * `VITE_FIREBASE_APP_ID`
+   * `VITE_FIREBASE_DATABASE_ID` = `(default)`
+
+5. Klik **Re-deploy site** di Netlify. Kini Google Login dan Firebase Firestore akan berfungsi 100% sempurna di domain Netlify anda!
+
+---
+
 ## ⚡ Ciri-ciri Keselamatan & Integrasi
 * **Firebase Firestore**: Kekal digunakan secara terus sebagai pangkalan data utama.
 * **Server-Side Telegram Integration**: Mesej dihantar melalui Netlify Serverless Function `/api/send-telegram` tanpa mendedahkan Bot Token di pelayar.

@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, query, doc, updateDoc, deleteDoc, writeBatch, onSnapshot, setDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { db, auth, googleProvider, signInWithPopup, handleFirestoreError, OperationType } from './firebase';
+import { db, auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, handleFirestoreError, OperationType } from './firebase';
 import Dashboard from './components/Dashboard';
 import FeedbackForm from './components/FeedbackForm';
 import PastiManager from './components/PastiManager';
@@ -111,6 +111,15 @@ export default function App() {
       addNotification('Sistem Diakses', 'Seorang pengguna baru telah membuka sistem PASTI Kuala Langat.');
       sessionStorage.setItem('session_notified', 'true');
     }
+
+    // Check for auth redirect result (useful when popup is blocked on mobile browsers)
+    getRedirectResult(auth).then(result => {
+      if (result && result.user) {
+        addNotification('Admin Login', `Admin (${result.user.displayName || result.user.email}) telah log masuk ke sistem.`);
+      }
+    }).catch(err => {
+      console.warn('Redirect auth error:', err);
+    });
 
     const unsub = onAuthStateChanged(auth, u => setUser(u));
     return () => unsub();
@@ -294,12 +303,28 @@ export default function App() {
         addNotification('Admin Login', `Admin (${result.user.displayName || result.user.email}) telah log masuk ke sistem.`);
       }
     } catch (e: any) {
+      console.error('Login error:', e);
       if (e.code === 'auth/cancelled-popup-request') {
         console.warn('Login popup closed by user.');
-      } else {
-        console.error('Login error:', e);
-        alert('Gagal log masuk. Sila pastikan pop-up dibenarkan dalam pelayar anda.');
+        return;
       }
+
+      if (e.code === 'auth/unauthorized-domain') {
+        alert(`❌ Ralat Domain Tidak Dibenarkan (auth/unauthorized-domain):\n\nDomain "${window.location.hostname}" belum didaftarkan dalam Authorized Domains di Firebase Console.\n\nSila rujuk panduan dalam fail NETLIFY_DEPLOYMENT_GUIDE.md untuk mendaftarkan domain anda atau bertukar ke Projek Firebase peribadi anda.`);
+        return;
+      }
+
+      // If popup is blocked by browser or fails on mobile, fallback to Redirect method
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user' || /Mobi|Android/i.test(navigator.userAgent)) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr) {
+          console.error('Redirect login error:', redirectErr);
+        }
+      }
+
+      alert(`Gagal log masuk (${e.code || 'Ralat Popup'}). Sila pastikan pop-up dibenarkan dalam pelayar anda atau gunakan projek Firebase peribadi.`);
     }
   };
   return (
