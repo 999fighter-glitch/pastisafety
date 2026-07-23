@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Serverless function redirects for API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+# Client SPA fallback for React Router / single page application
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
