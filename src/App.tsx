@@ -28,7 +28,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [showOwnerWelcomeModal, setShowOwnerWelcomeModal] = useState(false);
   const [view, setView] = useState<'dashboard' | 'feedback' | 'manage' | 'telegrams' | 'extinguisher-monitor' | 'reports-list' | 'admin' | 'guide'>('feedback');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
@@ -36,6 +36,15 @@ export default function App() {
   const addNotification = async (title: string, message: string) => {
     setNotifications(prev => [{ title, message, timestamp: Date.now() }, ...prev].slice(0, 50));
     
+    // Send to Telegram Bot via server API
+    try {
+        fetch('/api/send-telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `[${title}]\n${message}` }),
+        });
+    } catch(e) { console.error("Error triggering Telegram bot: ", e); }
+
     // Save to Firestore for Admin Data Management panel (submit inbox)
     try {
         await addDoc(collection(db, 'adminNotifications'), {
@@ -43,7 +52,7 @@ export default function App() {
             message,
             createdAt: new Date()
         });
-    } catch(e) { console.error("Error saving admin notification to Firestore: ", e); }
+    } catch(e) { handleFirestoreError(e, OperationType.CREATE, 'adminNotifications'); }
   };
 
   useEffect(() => {
@@ -89,6 +98,13 @@ export default function App() {
   }, [isIntroLoading]);
 
   useEffect(() => {
+    // Session start notification (Telegram Bot & Internal Log)
+    const sessionStarted = sessionStorage.getItem('session_notified');
+    if (!sessionStarted) {
+      addNotification('Sistem Diakses', 'Seorang pengguna baru telah membuka sistem PASTI Kuala Langat.');
+      sessionStorage.setItem('session_notified', 'true');
+    }
+
     const unsub = onAuthStateChanged(auth, u => setUser(u));
     return () => unsub();
   }, []);
@@ -116,7 +132,7 @@ export default function App() {
           title: 'Akses Owner Dicas',
           message: `Owner (${user.email}) telah mendaftar masuk ke aplikasi pada ${new Date().toLocaleString()}. Panel kawalan Data Management kini aktif.`,
           createdAt: new Date()
-        }).catch(err => console.error("Gagal menyimpan notifikasi akses owner:", err));
+        }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'adminNotifications'));
       }
     }
   }, [user]);
@@ -266,7 +282,10 @@ export default function App() {
 
   const login = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        addNotification('Admin Login', `Admin (${result.user.displayName || result.user.email}) telah log masuk ke sistem.`);
+      }
     } catch (e: any) {
       if (e.code === 'auth/cancelled-popup-request') {
         console.warn('Login popup closed by user.');
@@ -360,24 +379,24 @@ export default function App() {
           className="flex h-screen bg-slate-50 font-sans text-slate-800 relative overflow-hidden"
         >
           {/* Sidebar drawer/navigation */}
-          <aside className={`${isSidebarOpen ? 'w-64 p-6' : 'w-0 p-0'} bg-slate-900 text-white flex flex-col transition-all duration-300 overflow-hidden z-20 shadow-2xl`}>
+          <aside className={`${isSidebarOpen ? 'flex w-64 p-6' : 'hidden w-0 p-0 overflow-hidden'} bg-slate-900 text-white flex-col z-20 shadow-2xl shrink-0 h-full fixed lg:relative`}>
             <div className="min-w-[200px]">
               <h1 className="text-xl font-bold tracking-tight mb-8">PASTI <span className="text-emerald-400">Kuala Langat</span></h1>
               <nav className="space-y-2">
                   <button 
-                    onClick={() => { setView('feedback'); setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('feedback'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'feedback' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     Borang Maklum Balas
                   </button>
                   <button 
-                    onClick={() => { setView('reports-list'); setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('reports-list'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'reports-list' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     📋 Rekod Laporan (Awam)
                   </button>
                   <button 
-                    onClick={() => { setView('guide'); setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('guide'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'guide' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     📖 Panduan Pengguna
@@ -385,20 +404,20 @@ export default function App() {
                   {user && (
                     <>
                       <button 
-                        onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('dashboard'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'dashboard' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Dashboard
                       </button>
                       <button 
-                        onClick={() => { setView('manage'); setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('manage'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'manage' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Pengurusan Kontak PASTI
                       </button>
                       {isAdmin && (
                         <button 
-                          onClick={() => { setView('admin'); setIsSidebarOpen(false); }} 
+                          onClick={() => { setView('admin'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                           className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'admin' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                         >
                           ⚙️ Data Management
@@ -406,14 +425,14 @@ export default function App() {
                       )}
                       {isAdmin && (
                         <button 
-                          onClick={() => { setView('extinguisher-monitor'); setIsSidebarOpen(false); }} 
+                          onClick={() => { setView('extinguisher-monitor'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                           className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'extinguisher-monitor' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                         >
                           📅 Kalendar & Pemadam Api
                         </button>
                       )}
                       <button 
-                        onClick={() => { setView('telegrams'); setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('telegrams'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'telegrams' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Simulasi Bot Telegram
@@ -425,14 +444,19 @@ export default function App() {
             <div className="mt-auto min-w-[200px]">
                 {user ? (
                   <button 
-                    onClick={() => { signOut(auth); setIsSidebarOpen(false); }} 
+                    onClick={() => { 
+                      const userEmail = user.email;
+                      signOut(auth); 
+                      addNotification('Admin Logout', `Admin (${userEmail}) telah log keluar dari sistem.`);
+                      if (window.innerWidth < 1024) setIsSidebarOpen(false); 
+                    }} 
                     className="text-slate-400 text-sm hover:text-white transition-colors cursor-pointer"
                   >
                     Logout
                   </button>
                 ) : (
                   <button 
-                    onClick={() => { login(); setIsSidebarOpen(false); }} 
+                    onClick={() => { login(); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
                     className="text-emerald-400 text-sm hover:text-emerald-300 transition-colors font-medium cursor-pointer"
                   >
                     Admin Login
@@ -444,27 +468,39 @@ export default function App() {
           {/* Click away overlay when sidebar is open on smaller screen layouts/clean interaction */}
           {isSidebarOpen && (
             <div 
-              className="fixed inset-0 bg-black/40 z-10 transition-opacity duration-300 md:hidden"
+              className="fixed inset-0 bg-black/40 z-10 transition-opacity duration-300 lg:hidden"
               onClick={() => setIsSidebarOpen(false)}
             />
           )}
 
           {/* Main content viewport */}
           <main 
-            onClick={() => { if (isSidebarOpen) setIsSidebarOpen(false); }}
+            onClick={() => { if (isSidebarOpen && window.innerWidth < 1024) setIsSidebarOpen(false); }}
             className="flex-1 overflow-auto flex flex-col"
           >
             <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
                 <button 
                   onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(!isSidebarOpen); }} 
-                  className="mr-4 text-slate-600 hover:text-emerald-600 transition-colors cursor-pointer"
-                  title="Toggle menu"
+                  className="mr-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-950 font-bold text-xs transition-all cursor-pointer"
+                  title={isSidebarOpen ? "Sembunyi Menu" : "Papar Menu"}
                 >
-                  <svg className="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                  </svg>
+                  {isSidebarOpen ? (
+                    <>
+                      <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span className="hidden sm:inline">Sembunyi Menu</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 text-slate-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                      <span className="hidden sm:inline">Papar Menu</span>
+                    </>
+                  )}
                 </button>
-                <span className="text-slate-500 text-sm font-medium">{user ? `Selamat Datang, ${user.displayName} (${user.email})` : 'Mod Awam'}</span>
+                <span className="text-slate-500 text-xs sm:text-sm font-medium">{user ? `Selamat Datang, ${user.displayName} (${user.email})` : 'Mod Awam'}</span>
                 <div className="ml-auto">
                     <VisitorStats />
                 </div>
@@ -513,7 +549,8 @@ export default function App() {
                 )}
             </div>
           </main>
-          {isAdmin && <AdminNotificationToast notifications={notifications} />}
+          {/* Floating Toasts (Visible to everyone for real-time awareness) */}
+          <AdminNotificationToast notifications={notifications} />
 
           {showOwnerWelcomeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">

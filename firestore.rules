@@ -35,8 +35,11 @@ service cloud.firestore {
     }
 
     match /adminNotifications/{notificationId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, write: if true;
+    }
+
+    match /systemConfig/{configId} {
+      allow read, write: if true;
     }
 
     // Global safety net (Default Deny)
