@@ -114,6 +114,34 @@ Untuk hosting berterusan di Netlify dengan sokongan penuh **Google Login** dan *
 
 ---
 
+## 📦 CARA PINDAHKAN (MIGRATE) DATA DARI SANDBOX KE PROJEK FIREBASE BAHARU
+
+### Adakah Data Pangkalan Data Disalin Secara Automatik?
+**Jawapan: TIDAK.** Apabila anda mencipta projek Firebase baharu di bawah akaun Google anda sendiri, pangkalan data Firestore projek baharu itu bermula secara **kosong** (sifar rekod).
+
+### 🚀 Cara Pindahkan Data Menggunakan Panel Admin Sistem (1-Klik):
+
+Sistem ini telah dilengkapi dengan **Migration Suite (Alat Pindahan Data)** yang dibina khas di dalam **Admin Data Panel**:
+
+#### **Langkah A: Eksport Data dari Persekitaran Sandbox**
+1. Dalam aplikasi web ini, log masuk sebagai Admin/Owner (`muhaiminzeeismail@gmail.com`).
+2. Pergi ke tab **Data Management (Admin)**.
+3. Di bahagian **🔄 Pindahan & Salinan Pangkalan Data (Migration Suite)**, klik **"Eksport Backup JSON"**.
+4. Sistem akan memuat turun fail `PASTI_Kuala_Langat_Firestore_Backup.json` yang mengandungi semua rekod cawangan PASTI, laporan keselamatan, dan statistik.
+
+#### **Langkah B: Import Data ke Projek Firebase Baharu Anda (di Netlify)**
+1. Selepas anda memasukkan Environment Variables Firebase baharu di Netlify dan laman web Netlify telah siap *Deploy*:
+2. Buka URL Netlify anda di pelayar web.
+3. Log masuk ke Admin Panel di laman Netlify anda.
+4. Pergi ke **Data Management (Admin)**.
+5. Klik butang **"Muat Naik & Pulih JSON"** dan pilih fail `PASTI_Kuala_Langat_Firestore_Backup.json` yang telah anda muat turun tadi.
+6. **Selesai!** Semua koleksi `pastis`, `siteStats`, dan laporan akan dipulihkan serta-merta ke pangkalan data Firebase baharu anda.
+
+> 💡 **Nota Tambahan (Auto-Seed 12 PASTI):**
+> Jika anda tidak mahu memuat naik backup JSON dan ingin terus membina pangkalan data bersih untuk 12 cawangan PASTI Kuala Langat, anda hanya perlu klik butang **"Auto-Seed 12 PASTI"** di Admin Panel. Sistem akan menjana senarai 12 cawangan PASTI beserta kaunter statistik secara automatik!
+
+---
+
 ## ⚡ Ciri-ciri Keselamatan & Integrasi
 * **Firebase Firestore**: Kekal digunakan secara terus sebagai pangkalan data utama.
 * **Server-Side Telegram Integration**: Mesej dihantar melalui Netlify Serverless Function `/api/send-telegram` tanpa mendedahkan Bot Token di pelayar.

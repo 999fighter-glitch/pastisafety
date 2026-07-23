@@ -5,24 +5,23 @@ service cloud.firestore {
     function isAdmin() { return isSignedIn() && request.auth.token.email == 'muhaiminzeeismail@gmail.com'; }
 
     match /pastis/{pastiId} {
-      allow read: if true; 
-      allow create, delete: if isAdmin();
-      allow update: if true;
+      allow read, write: if true; 
       
       match /safetyChecks/{checkId} {
-        allow create: if true; 
-        allow read, delete: if isAdmin();
+        allow read, write: if true;
       }
     }
 
     match /submissions/{submissionId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read, write: if true;
+    }
+
+    match /feedbacks/{feedbackId} {
+      allow read, write: if true;
     }
     
     match /visitorLogs/{docId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
     match /activeViewers/{sessionId} {
@@ -30,8 +29,7 @@ service cloud.firestore {
     }
     
     match /siteStats/{docId} {
-      allow read: if true;
-      allow write: if true;
+      allow read, write: if true;
     }
 
     match /adminNotifications/{notificationId} {

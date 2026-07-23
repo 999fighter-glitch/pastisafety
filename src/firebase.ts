@@ -31,16 +31,52 @@ export interface FirestoreErrorInfo {
 
 const metaEnv = (import.meta as any).env || {};
 
-const config = {
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
-  appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
-};
+function getActiveFirebaseConfig() {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('CUSTOM_FIREBASE_CONFIG');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.projectId) {
+          return {
+            config: {
+              apiKey: parsed.apiKey || firebaseConfig.apiKey,
+              authDomain: parsed.authDomain || `${parsed.projectId}.firebaseapp.com`,
+              projectId: parsed.projectId,
+              storageBucket: parsed.storageBucket || `${parsed.projectId}.appspot.com`,
+              messagingSenderId: parsed.messagingSenderId || firebaseConfig.messagingSenderId || '',
+              appId: parsed.appId || firebaseConfig.appId || '',
+            },
+            databaseId: parsed.databaseId || firebaseConfig.firestoreDatabaseId || '(default)',
+            isCustom: true
+          };
+        }
+      } catch (e) {
+        console.warn('Invalid CUSTOM_FIREBASE_CONFIG in localStorage:', e);
+      }
+    }
+  }
 
-const databaseId = metaEnv.VITE_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId;
+  return {
+    config: {
+      apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+      authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+      projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+      storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+      messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+      appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+    },
+    databaseId: metaEnv.VITE_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || '(default)',
+    isCustom: Boolean(metaEnv.VITE_FIREBASE_PROJECT_ID)
+  };
+}
+
+const activeSetup = getActiveFirebaseConfig();
+const config = activeSetup.config;
+const databaseId = activeSetup.databaseId;
+
+export const isUsingCustomFirebase = activeSetup.isCustom;
+export const currentProjectId = config.projectId;
 
 const app = initializeApp(config);
 export const db = initializeFirestore(app, {

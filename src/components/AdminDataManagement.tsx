@@ -1,8 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, getDocs, doc, writeBatch } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, getDocs, doc, writeBatch, addDoc, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType, isUsingCustomFirebase, currentProjectId } from '../firebase';
+import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield, Download, Upload, Database, Sparkles, CheckCircle2, Key, Copy, Check, Terminal, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+const DEFAULT_PASTI_SEED = [
+  { name: 'PASTI Al-Hidayah, Banting', headTeacher: 'Ustazah Noraini', phone: '0123456781' },
+  { name: 'PASTI As-Syakirin, Telok Panglima Garang', headTeacher: 'Ustazah Fatimah', phone: '0139876542' },
+  { name: 'PASTI Nurul Huda, Jenjarom', headTeacher: 'Ustazah Zaiton', phone: '0198765431' },
+  { name: 'PASTI Al-Murom, Morib', headTeacher: 'Ustazah Salmah', phone: '0112345678' },
+  { name: 'PASTI Al-Falah, Bandar Saujana Putra', headTeacher: 'Ustazah Maryam', phone: '0176543210' },
+  { name: 'PASTI As-Salam, Sijangkang', headTeacher: 'Ustazah Aminah', phone: '0189012345' },
+  { name: 'PASTI Al-Ikhlas, Kanchong Darat', headTeacher: 'Ustazah Rohana', phone: '0145678901' },
+  { name: 'PASTI Nurul Iman, Sungai Lang', headTeacher: 'Ustazah Khadijah', phone: '0167890123' },
+  { name: 'PASTI Ar-Raudhah, Jugra', headTeacher: 'Ustazah Azizah', phone: '0129012345' },
+  { name: 'PASTI Al-Hikmah, Permatang Pasir', headTeacher: 'Ustazah Hasnah', phone: '0130123456' },
+  { name: 'PASTI At-Taqwa, Kelanang', headTeacher: 'Ustazah Fauziah', phone: '0191234567' },
+  { name: 'PASTI Al-Ehsan, Bukit Changgang', headTeacher: 'Ustazah Rashidah', phone: '0112345679' },
+];
 
 export default function AdminDataManagement() {
   const [visitorLogs, setVisitorLogs] = useState<any[]>([]);
@@ -12,11 +27,108 @@ export default function AdminDataManagement() {
   const [browseCount, setBrowseCount] = useState<number | null>(null);
   const [logFilter, setLogFilter] = useState<'all' | 'public' | 'admin'>('all');
 
+  // Migration & Backup States
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  // Auto Firebase Setup Wizard State
+  const [pastedConfig, setPastedConfig] = useState('');
+  const [copiedEnv, setCopiedEnv] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+
   // Deletion/Reset State
   const [isResettingOwner, setIsResettingOwner] = useState(false);
   const [isResettingAll, setIsResettingAll] = useState(false);
   const [isResettingActive, setIsResettingActive] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Helper: Auto-parse pasted Firebase code snippet or JSON
+  const parsedEnv = React.useMemo(() => {
+    if (!pastedConfig.trim()) return null;
+    const raw = pastedConfig;
+    
+    // Try JSON parse first
+    try {
+      const obj = JSON.parse(raw);
+      if (obj.apiKey || obj.projectId) {
+        return {
+          apiKey: obj.apiKey || '',
+          authDomain: obj.authDomain || (obj.projectId ? `${obj.projectId}.firebaseapp.com` : ''),
+          projectId: obj.projectId || '',
+          storageBucket: obj.storageBucket || (obj.projectId ? `${obj.projectId}.appspot.com` : ''),
+          messagingSenderId: obj.messagingSenderId || '',
+          appId: obj.appId || '',
+        };
+      }
+    } catch (e) {
+      // Ignore JSON error and fallback to regex extraction
+    }
+
+    const extract = (key: string) => {
+      const regex = new RegExp(`${key}\\s*:\\s*["']([^"']+)["']`, 'i');
+      const match = raw.match(regex);
+      return match ? match[1] : '';
+    };
+
+    const apiKey = extract('apiKey');
+    const projectId = extract('projectId');
+    const authDomain = extract('authDomain') || (projectId ? `${projectId}.firebaseapp.com` : '');
+    const storageBucket = extract('storageBucket') || (projectId ? `${projectId}.appspot.com` : '');
+    const messagingSenderId = extract('messagingSenderId');
+    const appId = extract('appId');
+
+    if (apiKey || projectId) {
+      return {
+        apiKey,
+        authDomain,
+        projectId,
+        storageBucket,
+        messagingSenderId,
+        appId
+      };
+    }
+    return null;
+  }, [pastedConfig]);
+
+  const generatedEnvText = React.useMemo(() => {
+    if (!parsedEnv) return '';
+    return [
+      `VITE_FIREBASE_API_KEY=${parsedEnv.apiKey}`,
+      `VITE_FIREBASE_AUTH_DOMAIN=${parsedEnv.authDomain}`,
+      `VITE_FIREBASE_PROJECT_ID=${parsedEnv.projectId}`,
+      `VITE_FIREBASE_STORAGE_BUCKET=${parsedEnv.storageBucket}`,
+      `VITE_FIREBASE_MESSAGING_SENDER_ID=${parsedEnv.messagingSenderId}`,
+      `VITE_FIREBASE_APP_ID=${parsedEnv.appId}`,
+      `VITE_FIREBASE_DATABASE_ID=(default)`
+    ].join('\n');
+  }, [parsedEnv]);
+
+  const handleSaveCustomFirebase = () => {
+    if (!parsedEnv || !parsedEnv.projectId) {
+      alert("Sila masukkan kod konfigurasi Firebase yang sah (mesti mengandungi projectId dan apiKey).");
+      return;
+    }
+
+    localStorage.setItem('CUSTOM_FIREBASE_CONFIG', JSON.stringify(parsedEnv));
+    alert(`🎉 Berjaya menyimpan konfigurasi untuk projek Firebase: "${parsedEnv.projectId}"!\n\nAplikasi akan memuat semula halaman sekarang untuk menggunakan pangkalan data projek baharu ini.`);
+    window.location.reload();
+  };
+
+  const handleResetToSandbox = () => {
+    if (confirm("Adakah anda pasti mahu kembali ke Projek Sandbox asal AI Studio?")) {
+      localStorage.removeItem('CUSTOM_FIREBASE_CONFIG');
+      alert("Telah kembali ke Projek Sandbox asal.");
+      window.location.reload();
+    }
+  };
+
+  const handleCopyEnvText = () => {
+    if (!generatedEnvText) return;
+    navigator.clipboard.writeText(generatedEnvText);
+    setCopiedEnv(true);
+    setTimeout(() => setCopiedEnv(false), 3000);
+  };
 
   // Custom confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -179,6 +291,139 @@ export default function AdminDataManagement() {
     }
   };
 
+  // Export Full Database to JSON
+  const handleExportBackup = async () => {
+    setIsExporting(true);
+    try {
+      const pastisSnap = await getDocs(collection(db, 'pastis'));
+      const feedbacksSnap = await getDocs(collection(db, 'feedbacks'));
+      const statsSnap = await getDocs(collection(db, 'siteStats'));
+      const logsSnap = await getDocs(collection(db, 'visitorLogs'));
+      const notifsSnap = await getDocs(collection(db, 'adminNotifications'));
+
+      const backupData = {
+        exportedAt: new Date().toISOString(),
+        projectName: 'PASTI Kuala Langat Safety System',
+        collections: {
+          pastis: pastisSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          feedbacks: feedbacksSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          siteStats: statsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          visitorLogs: logsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          adminNotifications: notifsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `PASTI_Kuala_Langat_Firestore_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setStatusMessage("✅ Backup data Firestore berjaya dimuat turun!");
+      setTimeout(() => setStatusMessage(null), 5000);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal mengeksport data: " + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Import Full Database from JSON
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      if (!backup.collections) {
+        throw new Error("Format JSON tidak sah. Sila pastikan fail eksport daripada sistem.");
+      }
+
+      let restoredCount = 0;
+      const batch = writeBatch(db);
+
+      if (Array.isArray(backup.collections.pastis)) {
+        for (const item of backup.collections.pastis) {
+          const { id, ...data } = item;
+          const ref = id ? doc(db, 'pastis', id) : doc(collection(db, 'pastis'));
+          batch.set(ref, data, { merge: true });
+          restoredCount++;
+        }
+      }
+
+      if (Array.isArray(backup.collections.siteStats)) {
+        for (const item of backup.collections.siteStats) {
+          const { id, ...data } = item;
+          const ref = doc(db, 'siteStats', id || 'visitors');
+          batch.set(ref, data, { merge: true });
+          restoredCount++;
+        }
+      }
+
+      if (Array.isArray(backup.collections.feedbacks)) {
+        for (const item of backup.collections.feedbacks) {
+          const { id, ...data } = item;
+          const ref = id ? doc(db, 'feedbacks', id) : doc(collection(db, 'feedbacks'));
+          batch.set(ref, data, { merge: true });
+          restoredCount++;
+        }
+      }
+
+      await batch.commit();
+      setStatusMessage(`🎉 Berjaya memindahkan & memulihkan ${restoredCount} rekod pangkalan data ke projek Firebase ini!`);
+      setTimeout(() => setStatusMessage(null), 6000);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal memulihkan data: " + err.message);
+    } finally {
+      setIsImporting(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Auto-seed Default Data & Collections
+  const handleAutoSeed = async () => {
+    setIsSeeding(true);
+    try {
+      const pastisSnap = await getDocs(collection(db, 'pastis'));
+      const batch = writeBatch(db);
+
+      if (pastisSnap.empty) {
+        DEFAULT_PASTI_SEED.forEach(pasti => {
+          const ref = doc(collection(db, 'pastis'));
+          batch.set(ref, pasti);
+        });
+      }
+
+      const statsRef = doc(db, 'siteStats', 'visitors');
+      batch.set(statsRef, { count: 1, browseCount: 1 }, { merge: true });
+
+      const notifRef = doc(collection(db, 'adminNotifications'));
+      batch.set(notifRef, {
+        title: 'Pangkalan Data Baharu Dicipta',
+        message: 'Koleksi pangkalan data PASTI & statistik telah auto-jana dengan jayanya.',
+        createdAt: new Date().toISOString()
+      });
+
+      await batch.commit();
+      setStatusMessage("🌱 Koleksi pangkalan data PASTI (12 Cawangan) & statistik kaunter telah auto-jana dengan jayanya!");
+      setTimeout(() => setStatusMessage(null), 6000);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal auto-seed data: " + err.message);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1 pb-4 border-b border-slate-100">
@@ -254,6 +499,189 @@ export default function AdminDataManagement() {
           <span>✨</span> {statusMessage}
         </div>
       )}
+
+      {/* FIREBASE AUTO-SETUP & CONFIG WIZARD */}
+      <div className="bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/90 text-white p-5 rounded-2xl border border-amber-500/30 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-amber-400 font-extrabold text-sm">
+              <Key size={18} className="animate-pulse" />
+              <span>🔥 Auto-Setup Projek Firebase Baharu (Config Wizard)</span>
+              {isUsingCustomFirebase ? (
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2.5 py-0.5 rounded-full border border-emerald-500/40 font-extrabold flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Custom Project: {currentProjectId}
+                </span>
+              ) : (
+                <span className="bg-amber-500/20 text-amber-300 text-[10px] px-2.5 py-0.5 rounded-full border border-amber-500/40 font-extrabold">
+                  Sandbox Mode: {currentProjectId}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              Tampal kod <code>const firebaseConfig = &#123; ... &#125;</code> dari Firebase Console untuk menukar pangkalan data secara automatik & dapatkan pemboleh ubah persekitaran (Env Vars) untuk Netlify.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsWizardOpen(!isWizardOpen)}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20"
+            >
+              <Key size={14} />
+              {isWizardOpen ? "Tutup Setup Wizard" : "🔥 Buka Setup Wizard Projek"}
+            </button>
+            {isUsingCustomFirebase && (
+              <button
+                onClick={handleResetToSandbox}
+                className="bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 font-extrabold text-xs py-2.5 px-3 rounded-xl border border-slate-700 transition-all cursor-pointer"
+                title="Kembali ke Projek Sandbox AI Studio"
+              >
+                Reset Ke Sandbox
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Wizard Panel */}
+        <AnimatePresence>
+          {isWizardOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pt-4 border-t border-amber-500/20 space-y-4 overflow-hidden"
+            >
+              <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-3">
+                <label className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  <Terminal size={14} />
+                  <span>1. Tampal Kod SDK Firebase dari Firebase Console:</span>
+                </label>
+                <p className="text-[11px] text-slate-400">
+                  Salin kod skrip dari <b>Firebase Console &gt; Project Settings &gt; General &gt; Your apps &gt; SDK setup (Config)</b> dan tampal di bawah:
+                </p>
+                <textarea
+                  value={pastedConfig}
+                  onChange={(e) => setPastedConfig(e.target.value)}
+                  placeholder={`Contoh tampalan:\nconst firebaseConfig = {\n  apiKey: "AIzaSyD...",\n  authDomain: "pasti-kl.firebaseapp.com",\n  projectId: "pasti-kl",\n  storageBucket: "pasti-kl.appspot.com",\n  messagingSenderId: "123456789",\n  appId: "1:123456789:web:abcde"\n};`}
+                  rows={5}
+                  className="w-full bg-slate-900 border border-slate-700 text-amber-100 font-mono text-xs p-3 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              {parsedEnv ? (
+                <div className="space-y-4 bg-emerald-950/40 border border-emerald-500/30 p-4 rounded-xl">
+                  <div className="flex items-center justify-between text-emerald-300 font-black text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 size={16} className="text-emerald-400" />
+                      <span>Projek Berjaya Dikesan: <code className="bg-emerald-900/60 px-2 py-0.5 rounded text-white">{parsedEnv.projectId}</code></span>
+                    </span>
+                    <button
+                      onClick={handleSaveCustomFirebase}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl cursor-pointer shadow-md transition-all animate-bounce"
+                    >
+                      🚀 Sambung & Tukar Pangkalan Data Sekarang
+                    </button>
+                  </div>
+
+                  {/* Extracted JSON Details */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px] font-mono">
+                    <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
+                      <span className="text-slate-400 block text-[9px] uppercase">API Key</span>
+                      <span className="text-amber-200 truncate block">{parsedEnv.apiKey || '-'}</span>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
+                      <span className="text-slate-400 block text-[9px] uppercase">Project ID</span>
+                      <span className="text-emerald-300 font-bold truncate block">{parsedEnv.projectId || '-'}</span>
+                    </div>
+                    <div className="bg-slate-900/80 p-2 rounded border border-slate-800">
+                      <span className="text-slate-400 block text-[9px] uppercase">Auth Domain</span>
+                      <span className="text-amber-200 truncate block">{parsedEnv.authDomain || '-'}</span>
+                    </div>
+                  </div>
+
+                  {/* Generated Netlify Env block */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Terminal size={14} className="text-indigo-400" />
+                        <span>2. Salin Nilai Ini Ke Netlify &gt; Site Settings &gt; Environment Variables:</span>
+                      </span>
+                      <button
+                        onClick={handleCopyEnvText}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-[11px] px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5 transition-all shadow-md"
+                      >
+                        {copiedEnv ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
+                        <span>{copiedEnv ? "Telah Disalin!" : "Salin Semua Env Netlify"}</span>
+                      </button>
+                    </div>
+
+                    <pre className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-emerald-400 font-mono overflow-x-auto selection:bg-emerald-800">
+                      {generatedEnvText}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                pastedConfig.trim() && (
+                  <div className="p-3 bg-rose-950/40 border border-rose-500/30 text-rose-300 rounded-xl text-xs font-medium flex items-center gap-2">
+                    <AlertTriangle size={16} />
+                    <span>Tidak dapat mengesan kunci Firebase yang sah. Sila pastikan anda menampal keseluruhan blok <code>const firebaseConfig = &#123; ... &#125;</code>.</span>
+                  </div>
+                )
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* DATA MIGRATION & BACKUP SUITE */}
+      <div className="bg-gradient-to-r from-emerald-900/90 via-teal-900/90 to-slate-900 text-white p-5 rounded-2xl border border-emerald-700/60 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-sm">
+            <Database size={18} className="animate-pulse" />
+            <span>🔄 Pindahan & Salinan Pangkalan Data (Migration Suite)</span>
+            <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30 font-mono">Firebase Helper</span>
+          </div>
+          <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+            Pindahkan data dari projek sandbox ini ke projek Firebase peribadi baharu anda dalam beberapa saat. Muat turun backup JSON, atau muat naik untuk memulihkan semua koleksi PASTI, laporan & statistik.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2.5 w-full md:w-auto">
+          {/* Export JSON Button */}
+          <button
+            disabled={isExporting}
+            onClick={handleExportBackup}
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all shadow-lg shadow-emerald-500/20"
+          >
+            <Download size={14} className={isExporting ? "animate-bounce" : ""} />
+            {isExporting ? "Mengeksport..." : "Eksport Backup JSON"}
+          </button>
+
+          {/* Import JSON Button */}
+          <label className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all shadow-lg shadow-indigo-600/20 border border-indigo-400/30">
+            <Upload size={14} className={isImporting ? "animate-spin" : ""} />
+            {isImporting ? "Memulihkan..." : "Muat Naik & Pulih JSON"}
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              disabled={isImporting}
+              className="hidden"
+            />
+          </label>
+
+          {/* Auto-Seed Default Data */}
+          <button
+            disabled={isSeeding}
+            onClick={handleAutoSeed}
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-teal-800/80 hover:bg-teal-700 text-teal-200 font-extrabold text-xs py-2.5 px-3.5 rounded-xl cursor-pointer transition-all border border-teal-600/60"
+            title="Auto-jana 12 cawangan PASTI & kaunter statistik secara automatik"
+          >
+            <Sparkles size={14} className={isSeeding ? "animate-spin" : ""} />
+            {isSeeding ? "Penjadualan..." : "Auto-Seed 12 PASTI"}
+          </button>
+        </div>
+      </div>
 
       {/* Clean & Reset Actions Container */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Pasti } from '../types';
+import { Pasti, EquipmentItem } from '../types';
 import { 
   CheckCircle2, 
   Plus, 
@@ -20,7 +20,12 @@ import {
   ChevronUp,
   FileText,
   Check,
-  Edit2
+  Edit2,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  Flame,
+  Tag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -29,6 +34,44 @@ interface FeedbackFormProps {
   submissions: any[];
   onSubmit: (data: any) => Promise<boolean>;
 }
+
+// Compress uploaded image for fast & safe Firestore storage
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 800;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        } else {
+          resolve(e.target?.result as string || '');
+        }
+      };
+      img.onerror = () => reject(new Error('Image load error'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function FeedbackForm({ pastis, submissions, onSubmit }: FeedbackFormProps) {
   const [formData, setFormData] = useState<{
@@ -41,19 +84,31 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
     exitLight: boolean;
     lampuKecemasan: boolean;
     extinguisherExpiryDate: string;
-    fireExtinguishers: { id: string; label: string; expiryDate: string }[];
+    emergencyDoorsList: EquipmentItem[];
+    exitLightsList: EquipmentItem[];
+    lampuKecemasanList: EquipmentItem[];
+    fireExtinguishers: EquipmentItem[];
     notificationReceived: string;
   }>({
     pastiId: '',
     name: '',
     headTeacher: '',
     phone: '',
-    emergencyDoor: true, // Default to true (Ada)
-    exitLight: true,     // Default to true (Ada)
-    lampuKecemasan: true, // Default to true (Ada)
+    emergencyDoor: true,
+    exitLight: true,
+    lampuKecemasan: true,
     extinguisherExpiryDate: '',
+    emergencyDoorsList: [
+      { id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: '' }
+    ],
+    exitLightsList: [
+      { id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: '' }
+    ],
+    lampuKecemasanList: [
+      { id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }
+    ],
     fireExtinguishers: [
-      { id: '1', label: 'Pemadam Api 1', expiryDate: '' }
+      { id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }
     ],
     notificationReceived: 'BELUM DIHANTAR',
   });
@@ -78,17 +133,14 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
   }, [isStatusCheckerOpen]);
 
   const handleSelectFromChecker = (pastiId: string, focusTeacher: boolean = false) => {
-    // 1. Swap/populate form inputs
     handlePastiChange(pastiId);
     
-    // 2. Scroll smoothly to Borang Maklum Balas
     setTimeout(() => {
       const formCard = document.getElementById('feedback-form-card');
       if (formCard) {
         formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       
-      // 3. Focus corresponding inputs to help the user directly fill the data
       if (focusTeacher) {
         const headTeacherInput = document.getElementById('input-headTeacher');
         if (headTeacherInput) {
@@ -122,9 +174,18 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
           exitLight: existingSub.exitLight === true || existingSub.exitLight === 'ADA',
           lampuKecemasan: existingSub.lampuKecemasan === undefined ? true : (existingSub.lampuKecemasan === true || existingSub.lampuKecemasan === 'ADA'),
           extinguisherExpiryDate: existingSub.extinguisherExpiryDate || '',
+          emergencyDoorsList: existingSub.emergencyDoorsList && existingSub.emergencyDoorsList.length > 0
+            ? existingSub.emergencyDoorsList
+            : [{ id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: '' }],
+          exitLightsList: existingSub.exitLightsList && existingSub.exitLightsList.length > 0
+            ? existingSub.exitLightsList
+            : [{ id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: '' }],
+          lampuKecemasanList: existingSub.lampuKecemasanList && existingSub.lampuKecemasanList.length > 0
+            ? existingSub.lampuKecemasanList
+            : [{ id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }],
           fireExtinguishers: existingSub.fireExtinguishers && existingSub.fireExtinguishers.length > 0
             ? existingSub.fireExtinguishers
-            : [{ id: '1', label: 'Pemadam Api 1', expiryDate: existingSub.extinguisherExpiryDate || '' }],
+            : [{ id: '1', label: 'Pemadam Api 1', expiryDate: existingSub.extinguisherExpiryDate || '', serialNo: '', status: 'ADA', photoUrl: '' }],
           notificationReceived: existingSub.notificationReceived || 'BELUM DIHANTAR',
         });
       } else {
@@ -138,9 +199,10 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
           exitLight: true,
           lampuKecemasan: true,
           extinguisherExpiryDate: '',
-          fireExtinguishers: [
-            { id: '1', label: 'Pemadam Api 1', expiryDate: '' }
-          ],
+          emergencyDoorsList: [{ id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: '' }],
+          exitLightsList: [{ id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: '' }],
+          lampuKecemasanList: [{ id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }],
+          fireExtinguishers: [{ id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }],
           notificationReceived: 'BELUM DIHANTAR',
         });
       }
@@ -155,11 +217,54 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
         exitLight: true,
         lampuKecemasan: true,
         extinguisherExpiryDate: '',
-        fireExtinguishers: [
-          { id: '1', label: 'Pemadam Api 1', expiryDate: '' }
-        ],
+        emergencyDoorsList: [{ id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: '' }],
+        exitLightsList: [{ id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: '' }],
+        lampuKecemasanList: [{ id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }],
+        fireExtinguishers: [{ id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }],
         notificationReceived: 'BELUM DIHANTAR',
       });
+    }
+  };
+
+  const handleFileUploadForItem = async (
+    listType: 'doors' | 'exits' | 'spaceLights' | 'extinguishers',
+    itemId: string,
+    file: File
+  ) => {
+    try {
+      const compressed = await compressImage(file);
+      if (listType === 'doors') {
+        setFormData(prev => ({
+          ...prev,
+          emergencyDoorsList: prev.emergencyDoorsList.map(item =>
+            item.id === itemId ? { ...item, photoUrl: compressed } : item
+          )
+        }));
+      } else if (listType === 'exits') {
+        setFormData(prev => ({
+          ...prev,
+          exitLightsList: prev.exitLightsList.map(item =>
+            item.id === itemId ? { ...item, photoUrl: compressed } : item
+          )
+        }));
+      } else if (listType === 'spaceLights') {
+        setFormData(prev => ({
+          ...prev,
+          lampuKecemasanList: prev.lampuKecemasanList.map(item =>
+            item.id === itemId ? { ...item, photoUrl: compressed } : item
+          )
+        }));
+      } else if (listType === 'extinguishers') {
+        setFormData(prev => ({
+          ...prev,
+          fireExtinguishers: prev.fireExtinguishers.map(item =>
+            item.id === itemId ? { ...item, photoUrl: compressed } : item
+          )
+        }));
+      }
+    } catch (err) {
+      console.error('Error compressing image:', err);
+      alert('Gagal memproses gambar. Sila cuba gambar lain.');
     }
   };
 
@@ -181,7 +286,7 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
       setIsSubmitted(true);
       setShowToast(true);
       
-      // Auto clear the form inputs
+      // Auto clear form inputs
       setFormData({
         id: undefined,
         pastiId: '',
@@ -192,13 +297,13 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
         exitLight: true,
         lampuKecemasan: true,
         extinguisherExpiryDate: '',
-        fireExtinguishers: [
-          { id: '1', label: 'Pemadam Api 1', expiryDate: '' }
-        ],
+        emergencyDoorsList: [{ id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: '' }],
+        exitLightsList: [{ id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: '' }],
+        lampuKecemasanList: [{ id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }],
+        fireExtinguishers: [{ id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }],
         notificationReceived: 'BELUM DIHANTAR',
       });
 
-      // Auto dismiss toast after 6 seconds
       setTimeout(() => {
         setShowToast(false);
       }, 6000);
@@ -285,58 +390,89 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                   </div>
                 </div>
 
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-                  <DoorOpen size={18} className="text-slate-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pintu Kecemasan</span>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full mt-1 ${submittedSnapshot.emergencyDoor ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${submittedSnapshot.emergencyDoor ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      {submittedSnapshot.emergencyDoor ? 'Ada / Lengkap' : 'Tiada / Bermasalah'}
-                    </span>
-                  </div>
-                </div>
-
-                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-                  <Lightbulb size={18} className="text-slate-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Lampu Kecemasan (Exit)</span>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full mt-1 ${submittedSnapshot.exitLight ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${submittedSnapshot.exitLight ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      {submittedSnapshot.exitLight ? 'Ada / Lengkap' : 'Tiada / Bermasalah'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-                  <Lightbulb size={18} className="text-slate-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Lampu Kecemasan (Setiap Ruang)</span>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full mt-1 ${submittedSnapshot.lampuKecemasan ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${submittedSnapshot.lampuKecemasan ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      {submittedSnapshot.lampuKecemasan ? 'Ada' : 'Tiada'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-2 md:col-span-2">
-                  <div className="flex items-start gap-3">
-                    <Calendar size={18} className="text-slate-400 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Senarai Pemadam Api ({submittedSnapshot.fireExtinguishers?.length || 1})</span>
-                      <div className="mt-2 text-xs space-y-1.5">
-                        {submittedSnapshot.fireExtinguishers && submittedSnapshot.fireExtinguishers.length > 0 ? (
-                          submittedSnapshot.fireExtinguishers.map((ext: any, idx: number) => (
-                            <div key={ext.id || idx} className="flex justify-between items-center bg-white border border-slate-205 border-slate-200/60 p-2 rounded-lg">
-                              <span className="font-semibold text-slate-800">{ext.label}</span>
-                              <span className="font-mono bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">Luput: {ext.expiryDate || '-'}</span>
+                {/* Dynamic Equipment Summary Breakdown with Photos */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 md:col-span-2 space-y-3">
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ringkasan Peralatan & Gambar yang Dimuat Naik</span>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* Doors */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <DoorOpen size={14} className="text-emerald-600" /> Pintu Kecemasan ({submittedSnapshot.emergencyDoorsList?.length || 1})
+                      </span>
+                      <div className="space-y-2">
+                        {(submittedSnapshot.emergencyDoorsList || [{ label: 'Pintu Utama', status: submittedSnapshot.emergencyDoor ? 'ADA' : 'TIADA' }]).map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 p-2 rounded border border-slate-100">
+                            <div>
+                              <span className="font-medium text-slate-800 block">{item.label}</span>
+                              <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex justify-between items-center bg-white border p-2 rounded-lg">
-                            <span className="font-semibold text-slate-800">Pemadam Api 1</span>
-                            <span className="font-mono bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">Luput: {submittedSnapshot.extinguisherExpiryDate || '-'}</span>
+                            {item.photoUrl && (
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                            )}
                           </div>
-                        )}
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Exit Lights */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <Lightbulb size={14} className="text-emerald-600" /> Lampu Signage EXIT ({submittedSnapshot.exitLightsList?.length || 1})
+                      </span>
+                      <div className="space-y-2">
+                        {(submittedSnapshot.exitLightsList || [{ label: 'Lampu Exit Utama', status: submittedSnapshot.exitLight ? 'ADA' : 'TIADA' }]).map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 p-2 rounded border border-slate-100">
+                            <div>
+                              <span className="font-medium text-slate-800 block">{item.label}</span>
+                              <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
+                            </div>
+                            {item.photoUrl && (
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Emergency Space Lights */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <Lightbulb size={14} className="text-amber-600" /> Lampu Kecemasan Ruang ({submittedSnapshot.lampuKecemasanList?.length || 1})
+                      </span>
+                      <div className="space-y-2">
+                        {(submittedSnapshot.lampuKecemasanList || [{ label: 'Lampu Kecemasan Kelas', status: submittedSnapshot.lampuKecemasan ? 'ADA' : 'TIADA' }]).map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 bg-slate-50 p-2 rounded border border-slate-100">
+                            <div>
+                              <span className="font-medium text-slate-800 block">{item.label}</span>
+                              <span className={`text-[10px] font-bold ${item.status === 'ADA' || item.status === true ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
+                            </div>
+                            {item.photoUrl && (
+                              <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-3xs" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Fire Extinguishers */}
+                    <div className="bg-white p-3 rounded-lg border border-rose-200 space-y-2">
+                      <span className="font-bold text-rose-800 flex items-center gap-1.5">
+                        <Flame size={14} className="text-rose-600" /> Pemadam Api ({submittedSnapshot.fireExtinguishers?.length || 1})
+                      </span>
+                      <div className="space-y-2">
+                        {(submittedSnapshot.fireExtinguishers || [{ label: 'Pemadam Api 1', expiryDate: submittedSnapshot.extinguisherExpiryDate }]).map((ext: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 bg-rose-50/50 p-2 rounded border border-rose-100">
+                            <div>
+                              <span className="font-medium text-slate-800 block">{ext.label}</span>
+                              {ext.serialNo && <span className="text-[10px] font-mono text-slate-500 block">Siri: {ext.serialNo}</span>}
+                              <span className="text-[10px] font-bold text-rose-700">Luput: {ext.expiryDate || '-'}</span>
+                            </div>
+                            {ext.photoUrl && (
+                              <img src={ext.photoUrl} alt={ext.label} className="w-12 h-10 object-cover rounded border border-rose-300 shadow-3xs" />
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -596,153 +732,532 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                 </motion.div>
               )}
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                <div className="p-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pintu Kecemasan:</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="emergencyDoor" 
-                        checked={formData.emergencyDoor} 
-                        onChange={() => setFormData({...formData, emergencyDoor: true})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span>Ada</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="emergencyDoor" 
-                        checked={!formData.emergencyDoor} 
-                        onChange={() => setFormData({...formData, emergencyDoor: false})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span className="text-slate-500 font-medium">Tiada</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="p-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lampu Keluar:</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="exitLight" 
-                        checked={formData.exitLight} 
-                        onChange={() => setFormData({...formData, exitLight: true})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span>Ada</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="exitLight" 
-                        checked={!formData.exitLight} 
-                        onChange={() => setFormData({...formData, exitLight: false})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span className="text-slate-500 font-medium">Tiada</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="p-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lampu Kecemasan (Setiap Ruang):</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="lampuKecemasan" 
-                        checked={formData.lampuKecemasan} 
-                        onChange={() => setFormData({...formData, lampuKecemasan: true})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span>Ada</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
-                      <input 
-                        type="radio" 
-                        name="lampuKecemasan" 
-                        checked={!formData.lampuKecemasan} 
-                        onChange={() => setFormData({...formData, lampuKecemasan: false})} 
-                        className="text-emerald-600 focus:ring-emerald-500"
-                      /> 
-                      <span className="text-slate-500 font-medium">Tiada</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-1">
+              {/* 🚪 1. PINTU KECEMASAN (Dynamic List + Photo Upload) */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Senarai Unit Pemadam Api & Tarikh Luput:
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <DoorOpen size={16} className="text-emerald-600" />
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Pintu Kecemasan ({formData.emergencyDoorsList.length} Unit)
+                    </label>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
-                      const nextId = String(formData.fireExtinguishers.length + 1);
+                      const nextId = String(Date.now());
+                      setFormData({
+                        ...formData,
+                        emergencyDoorsList: [
+                          ...formData.emergencyDoorsList,
+                          { id: nextId, label: `Pintu Kecemasan ${formData.emergencyDoorsList.length + 1}`, status: 'ADA', photoUrl: '' }
+                        ]
+                      });
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-100/80 hover:bg-emerald-200/80 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all cursor-pointer"
+                  >
+                    <Plus size={12} strokeWidth={3} />
+                    <span>Tambah Pintu</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {formData.emergencyDoorsList.map((item) => (
+                    <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-3xs flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={item.label}
+                          placeholder="Nama Pintu (cth: Pintu Dapur / Hadapan)"
+                          onChange={(e) => {
+                            const updated = formData.emergencyDoorsList.map(d => d.id === item.id ? { ...d, label: e.target.value } : d);
+                            setFormData({ ...formData, emergencyDoorsList: updated });
+                          }}
+                          className="w-full border border-slate-200 p-2 text-xs font-semibold rounded-lg focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-2 text-xs font-semibold">
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'ADA' || item.status === true ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`door-status-${item.id}`}
+                              checked={item.status === 'ADA' || item.status === true}
+                              onChange={() => {
+                                const updated = formData.emergencyDoorsList.map(d => d.id === item.id ? { ...d, status: 'ADA' } : d);
+                                setFormData({ ...formData, emergencyDoorsList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Ada
+                          </label>
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'TIADA' || item.status === false ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`door-status-${item.id}`}
+                              checked={item.status === 'TIADA' || item.status === false}
+                              onChange={() => {
+                                const updated = formData.emergencyDoorsList.map(d => d.id === item.id ? { ...d, status: 'TIADA' } : d);
+                                setFormData({ ...formData, emergencyDoorsList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Tiada
+                          </label>
+                        </div>
+
+                        {/* Photo Upload for Door */}
+                        <div className="relative shrink-0">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
+                            <Camera size={14} className="text-emerald-600" />
+                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('doors', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {formData.emergencyDoorsList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, emergencyDoorsList: formData.emergencyDoorsList.filter(d => d.id !== item.id) });
+                            }}
+                            className="text-rose-500 p-1 hover:bg-rose-50 rounded"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {item.photoUrl && (
+                        <div className="w-full sm:w-auto relative group">
+                          <img src={item.photoUrl} alt={item.label} className="w-16 h-12 object-cover rounded-lg border border-emerald-300 shadow-2xs" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.emergencyDoorsList.map(d => d.id === item.id ? { ...d, photoUrl: '' } : d);
+                              setFormData({ ...formData, emergencyDoorsList: updated });
+                            }}
+                            className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white p-0.5 rounded-full shadow hover:scale-110 transition-all"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 💡 2. LAMPU EXIT (Dynamic List + Photo Upload) */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb size={16} className="text-emerald-600" />
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Lampu Signage 'EXIT' ({formData.exitLightsList.length} Unit)
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextId = String(Date.now());
+                      setFormData({
+                        ...formData,
+                        exitLightsList: [
+                          ...formData.exitLightsList,
+                          { id: nextId, label: `Lampu Exit ${formData.exitLightsList.length + 1}`, status: 'ADA', photoUrl: '' }
+                        ]
+                      });
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-emerald-700 font-bold bg-emerald-100/80 hover:bg-emerald-200/80 px-2.5 py-1 rounded-lg border border-emerald-300 transition-all cursor-pointer"
+                  >
+                    <Plus size={12} strokeWidth={3} />
+                    <span>Tambah Lampu Exit</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {formData.exitLightsList.map((item) => (
+                    <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-3xs flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={item.label}
+                          placeholder="Nama Lampu (cth: Exit Dewan Utama)"
+                          onChange={(e) => {
+                            const updated = formData.exitLightsList.map(d => d.id === item.id ? { ...d, label: e.target.value } : d);
+                            setFormData({ ...formData, exitLightsList: updated });
+                          }}
+                          className="w-full border border-slate-200 p-2 text-xs font-semibold rounded-lg focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-2 text-xs font-semibold">
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'ADA' || item.status === true ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`exit-status-${item.id}`}
+                              checked={item.status === 'ADA' || item.status === true}
+                              onChange={() => {
+                                const updated = formData.exitLightsList.map(d => d.id === item.id ? { ...d, status: 'ADA' } : d);
+                                setFormData({ ...formData, exitLightsList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Ada
+                          </label>
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'TIADA' || item.status === false ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`exit-status-${item.id}`}
+                              checked={item.status === 'TIADA' || item.status === false}
+                              onChange={() => {
+                                const updated = formData.exitLightsList.map(d => d.id === item.id ? { ...d, status: 'TIADA' } : d);
+                                setFormData({ ...formData, exitLightsList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Tiada
+                          </label>
+                        </div>
+
+                        {/* Photo Upload */}
+                        <div className="relative shrink-0">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
+                            <Camera size={14} className="text-emerald-600" />
+                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('exits', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {formData.exitLightsList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, exitLightsList: formData.exitLightsList.filter(d => d.id !== item.id) });
+                            }}
+                            className="text-rose-500 p-1 hover:bg-rose-50 rounded"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {item.photoUrl && (
+                        <div className="w-full sm:w-auto relative group">
+                          <img src={item.photoUrl} alt={item.label} className="w-16 h-12 object-cover rounded-lg border border-emerald-300 shadow-2xs" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.exitLightsList.map(d => d.id === item.id ? { ...d, photoUrl: '' } : d);
+                              setFormData({ ...formData, exitLightsList: updated });
+                            }}
+                            className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white p-0.5 rounded-full shadow hover:scale-110 transition-all"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 💡 3. LAMPU KECEMASAN RUANG (Dynamic List + Photo Upload) */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb size={16} className="text-amber-600" />
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Lampu Kecemasan Setiap Ruang ({formData.lampuKecemasanList.length} Unit)
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextId = String(Date.now());
+                      setFormData({
+                        ...formData,
+                        lampuKecemasanList: [
+                          ...formData.lampuKecemasanList,
+                          { id: nextId, label: `Lampu Kecemasan ${formData.lampuKecemasanList.length + 1}`, status: 'ADA', photoUrl: '' }
+                        ]
+                      });
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-amber-800 font-bold bg-amber-100/80 hover:bg-amber-200/80 px-2.5 py-1 rounded-lg border border-amber-300 transition-all cursor-pointer"
+                  >
+                    <Plus size={12} strokeWidth={3} />
+                    <span>Tambah Lampu Kecemasan</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {formData.lampuKecemasanList.map((item) => (
+                    <div key={item.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-3xs flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={item.label}
+                          placeholder="Lokasi Lampu (cth: Kelas A / Koridor)"
+                          onChange={(e) => {
+                            const updated = formData.lampuKecemasanList.map(d => d.id === item.id ? { ...d, label: e.target.value } : d);
+                            setFormData({ ...formData, lampuKecemasanList: updated });
+                          }}
+                          className="w-full border border-slate-200 p-2 text-xs font-semibold rounded-lg focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-2 text-xs font-semibold">
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'ADA' || item.status === true ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`space-light-status-${item.id}`}
+                              checked={item.status === 'ADA' || item.status === true}
+                              onChange={() => {
+                                const updated = formData.lampuKecemasanList.map(d => d.id === item.id ? { ...d, status: 'ADA' } : d);
+                                setFormData({ ...formData, lampuKecemasanList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Ada
+                          </label>
+                          <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${item.status === 'TIADA' || item.status === false ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <input
+                              type="radio"
+                              name={`space-light-status-${item.id}`}
+                              checked={item.status === 'TIADA' || item.status === false}
+                              onChange={() => {
+                                const updated = formData.lampuKecemasanList.map(d => d.id === item.id ? { ...d, status: 'TIADA' } : d);
+                                setFormData({ ...formData, lampuKecemasanList: updated });
+                              }}
+                              className="hidden"
+                            />
+                            Tiada
+                          </label>
+                        </div>
+
+                        {/* Photo Upload */}
+                        <div className="relative shrink-0">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 cursor-pointer transition-all">
+                            <Camera size={14} className="text-amber-600" />
+                            <span>{item.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('spaceLights', item.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {formData.lampuKecemasanList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, lampuKecemasanList: formData.lampuKecemasanList.filter(d => d.id !== item.id) });
+                            }}
+                            className="text-rose-500 p-1 hover:bg-rose-50 rounded"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {item.photoUrl && (
+                        <div className="w-full sm:w-auto relative group">
+                          <img src={item.photoUrl} alt={item.label} className="w-16 h-12 object-cover rounded-lg border border-amber-300 shadow-2xs" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.lampuKecemasanList.map(d => d.id === item.id ? { ...d, photoUrl: '' } : d);
+                              setFormData({ ...formData, lampuKecemasanList: updated });
+                            }}
+                            className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white p-0.5 rounded-full shadow hover:scale-110 transition-all"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 🧯 4. PEMADAM API (Dynamic List + Serial No + Expiry Date + Photo Upload) */}
+              <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Flame size={16} className="text-rose-600" />
+                    <label className="text-xs font-bold text-rose-900 uppercase tracking-wider">
+                      Rekod Pemadam Api & Tarikh Luput ({formData.fireExtinguishers.length} Unit)
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextId = String(Date.now());
                       setFormData({
                         ...formData,
                         fireExtinguishers: [
                           ...formData.fireExtinguishers,
-                          { id: nextId, label: `Pemadam Api ${nextId}`, expiryDate: '' }
+                          { id: nextId, label: `Pemadam Api ${formData.fireExtinguishers.length + 1}`, expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }
                         ]
                       });
                     }}
-                    className="flex items-center gap-1.5 text-[11px] text-emerald-700 hover:text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100/70 px-2.5 py-1.5 rounded-lg border border-emerald-200 cursor-pointer transition-all active:scale-[0.98]"
+                    className="flex items-center gap-1.5 text-[11px] text-rose-800 font-bold bg-rose-100 hover:bg-rose-200 px-2.5 py-1.5 rounded-lg border border-rose-300 cursor-pointer transition-all active:scale-[0.98]"
                   >
                     <Plus size={12} strokeWidth={3} />
                     <span>Tambah Pemadam Api</span>
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  {formData.fireExtinguishers.map((ext, idx) => (
-                    <div key={ext.id} className="flex flex-col sm:flex-row items-center gap-2 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
-                      <div className="w-full sm:w-1/3">
-                        <input 
-                          type="text" 
-                          placeholder="cth: Pemadam 1 (Debu)" 
-                          value={ext.label} 
-                          onChange={(e) => {
-                            const updated = formData.fireExtinguishers.map(item => 
-                              item.id === ext.id ? { ...item, label: e.target.value } : item
-                            );
-                            setFormData({ ...formData, fireExtinguishers: updated });
-                          }}
-                          className="w-full border border-slate-200 bg-white p-2 text-xs rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-semibold"
-                          required 
-                        />
+                <div className="space-y-3">
+                  {formData.fireExtinguishers.map((ext) => (
+                    <div key={ext.id} className="bg-white p-3.5 rounded-xl border border-rose-200/90 shadow-2xs flex flex-col gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Label Unit:</label>
+                          <input 
+                            type="text" 
+                            placeholder="cth: Pemadam 1 (Debu)" 
+                            value={ext.label} 
+                            onChange={(e) => {
+                              const updated = formData.fireExtinguishers.map(item => 
+                                item.id === ext.id ? { ...item, label: e.target.value } : item
+                              );
+                              setFormData({ ...formData, fireExtinguishers: updated });
+                            }}
+                            className="w-full border border-slate-200 bg-white p-2 text-xs rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-semibold"
+                            required 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">No. Siri / Kod (Opsional):</label>
+                          <input 
+                            type="text" 
+                            placeholder="cth: FE-2026-99" 
+                            value={ext.serialNo || ''} 
+                            onChange={(e) => {
+                              const updated = formData.fireExtinguishers.map(item => 
+                                item.id === ext.id ? { ...item, serialNo: e.target.value } : item
+                              );
+                              setFormData({ ...formData, fireExtinguishers: updated });
+                            }}
+                            className="w-full border border-slate-200 bg-white p-2 text-xs rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all font-medium"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-rose-700 uppercase mb-1">Tarikh Luput (Expiry Date):</label>
+                          <input 
+                            type="date" 
+                            value={ext.expiryDate} 
+                            onChange={(e) => {
+                              const updated = formData.fireExtinguishers.map(item => 
+                                item.id === ext.id ? { ...item, expiryDate: e.target.value } : item
+                              );
+                              setFormData({ ...formData, fireExtinguishers: updated });
+                            }}
+                            className="w-full border border-rose-300 bg-rose-50/30 p-2 text-xs rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all cursor-pointer font-bold text-rose-900"
+                            required 
+                          />
+                        </div>
                       </div>
-                      <div className="w-full sm:flex-1">
-                        <input 
-                          type="date" 
-                          value={ext.expiryDate} 
-                          onChange={(e) => {
-                            const updated = formData.fireExtinguishers.map(item => 
-                              item.id === ext.id ? { ...item, expiryDate: e.target.value } : item
-                            );
-                            setFormData({ ...formData, fireExtinguishers: updated });
-                          }}
-                          className="w-full border border-slate-200 bg-white p-2 text-xs rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all cursor-pointer font-medium"
-                          required 
-                        />
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <label className="text-[11px] font-bold text-slate-500 uppercase">Status:</label>
+                          <div className="flex gap-2 text-xs font-semibold">
+                            <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${ext.status === 'ADA' || ext.status === true ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                              <input
+                                type="radio"
+                                name={`ext-status-${ext.id}`}
+                                checked={ext.status === 'ADA' || ext.status === true}
+                                onChange={() => {
+                                  const updated = formData.fireExtinguishers.map(d => d.id === ext.id ? { ...d, status: 'ADA' } : d);
+                                  setFormData({ ...formData, fireExtinguishers: updated });
+                                }}
+                                className="hidden"
+                              />
+                              Ada & Baik
+                            </label>
+                            <label className={`px-2.5 py-1 rounded-lg border cursor-pointer ${ext.status === 'TIADA' || ext.status === false ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                              <input
+                                type="radio"
+                                name={`ext-status-${ext.id}`}
+                                checked={ext.status === 'TIADA' || ext.status === false}
+                                onChange={() => {
+                                  const updated = formData.fireExtinguishers.map(d => d.id === ext.id ? { ...d, status: 'TIADA' } : d);
+                                  setFormData({ ...formData, fireExtinguishers: updated });
+                                }}
+                                className="hidden"
+                              />
+                              Rosak / Tiada
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-900 text-xs font-bold rounded-lg border border-rose-300 cursor-pointer transition-all">
+                            <Camera size={14} className="text-rose-600" />
+                            <span>{ext.photoUrl ? 'Tukar Gambar' : 'Muat Naik Gambar'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUploadForItem('extinguishers', ext.id, file);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {formData.fireExtinguishers.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = formData.fireExtinguishers.filter(item => item.id !== ext.id);
+                                setFormData({ ...formData, fireExtinguishers: updated });
+                              }}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer shrink-0 border border-transparent hover:border-rose-100"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {formData.fireExtinguishers.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = formData.fireExtinguishers.filter(item => item.id !== ext.id);
-                            setFormData({ ...formData, fireExtinguishers: updated });
-                          }}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer shrink-0 border border-transparent hover:border-rose-100"
-                        >
-                          <X size={14} />
-                        </button>
+
+                      {ext.photoUrl && (
+                        <div className="relative group inline-block mt-1">
+                          <img src={ext.photoUrl} alt={ext.label} className="h-20 w-auto object-cover rounded-lg border border-rose-300 shadow-sm" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formData.fireExtinguishers.map(d => d.id === ext.id ? { ...d, photoUrl: '' } : d);
+                              setFormData({ ...formData, fireExtinguishers: updated });
+                            }}
+                            className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white p-0.5 rounded-full shadow hover:scale-110 transition-all"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}

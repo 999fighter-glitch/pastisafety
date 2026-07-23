@@ -239,12 +239,47 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                 {renderStatusBadge(sub.exitLight, 'Tanda EXIT')}
                               </div>
 
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                  <Lightbulb size={14} className="text-slate-400 shrink-0" />
-                                  <span>Lampu Kecemasan (Laluan):</span>
-                                </span>
-                                {renderStatusBadge(sub.lampuKecemasan, 'Lampu')}
+                              {/* Equipment List Breakdown with Uploaded Photos */}
+                              <div className="space-y-2 pt-2 border-t border-slate-100">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Gambar & Butiran Peralatan:</span>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  {sub.emergencyDoorsList?.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                      <div>
+                                        <span className="font-semibold text-slate-800 block">{item.label}</span>
+                                        <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
+                                      </div>
+                                      {item.photoUrl && (
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  {sub.exitLightsList?.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                      <div>
+                                        <span className="font-semibold text-slate-800 block">{item.label}</span>
+                                        <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
+                                      </div>
+                                      {item.photoUrl && (
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                      )}
+                                    </div>
+                                  ))}
+
+                                  {sub.lampuKecemasanList?.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                      <div>
+                                        <span className="font-semibold text-slate-800 block">{item.label}</span>
+                                        <span className="text-[10px] text-emerald-700 font-bold">Status: {item.status === 'ADA' || item.status === true ? 'ADA' : 'TIADA'}</span>
+                                      </div>
+                                      {item.photoUrl && (
+                                        <img src={item.photoUrl} alt={item.label} className="w-12 h-10 object-cover rounded border border-slate-300 shadow-2xs cursor-pointer hover:scale-105 transition-all" onClick={() => window.open(item.photoUrl, '_blank')} />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -279,13 +314,19 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
                                   return (
                                     <div 
                                       key={ext.id || idx}
-                                      className={`flex justify-between items-center bg-white border p-2.5 rounded-xl text-xs font-bold ${extColor}`}
+                                      className={`flex justify-between items-center bg-white border p-2.5 rounded-xl text-xs font-bold gap-2 ${extColor}`}
                                     >
                                       <div className="flex flex-col">
                                         <span className="font-extrabold text-slate-800">{ext.label || `Pemadam Api ${idx+1}`}</span>
+                                        {ext.serialNo && <span className="text-[10px] font-mono text-slate-500">Siri: {ext.serialNo}</span>}
                                         <span className="text-[10px] font-medium opacity-80">Luput: {ext.expiryDate || 'Tiada Tarikh'}</span>
                                       </div>
-                                      <span className="text-[10px] font-black uppercase tracking-tight">{textStatus}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-tight">{textStatus}</span>
+                                        {ext.photoUrl && (
+                                          <img src={ext.photoUrl} alt={ext.label} className="w-10 h-10 object-cover rounded border border-rose-300 cursor-pointer shadow-3xs" onClick={() => window.open(ext.photoUrl, '_blank')} />
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })
