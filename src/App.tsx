@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, query, doc, updateDoc, deleteDoc, writeBatch, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, doc, updateDoc, deleteDoc, writeBatch, onSnapshot, setDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { db, auth, googleProvider, signInWithPopup, handleFirestoreError, OperationType } from './firebase';
 import Dashboard from './components/Dashboard';
@@ -96,6 +96,13 @@ export default function App() {
       return () => clearInterval(interval);
     }
   }, [isIntroLoading]);
+
+  // Track page view changes for Browse Count analytics
+  useEffect(() => {
+    if (!isIntroLoading) {
+      setDoc(doc(db, 'siteStats', 'visitors'), { browseCount: increment(1) }, { merge: true }).catch(() => {});
+    }
+  }, [view, isIntroLoading]);
 
   useEffect(() => {
     // Session start notification (Telegram Bot & Internal Log)
@@ -550,7 +557,7 @@ export default function App() {
             </div>
           </main>
           {/* Floating Toasts (Visible to everyone for real-time awareness) */}
-          <AdminNotificationToast notifications={notifications} />
+          <AdminNotificationToast notifications={notifications} user={user} />
 
           {showOwnerWelcomeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">

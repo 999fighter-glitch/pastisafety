@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, getDocs, doc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye } from 'lucide-react';
+import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminDataManagement() {
@@ -9,6 +9,8 @@ export default function AdminDataManagement() {
   const [activeViewers, setActiveViewers] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [totalViews, setTotalViews] = useState<number | null>(null);
+  const [browseCount, setBrowseCount] = useState<number | null>(null);
+  const [logFilter, setLogFilter] = useState<'all' | 'public' | 'admin'>('all');
 
   // Deletion/Reset State
   const [isResettingOwner, setIsResettingOwner] = useState(false);
@@ -51,10 +53,12 @@ export default function AdminDataManagement() {
       handleFirestoreError(error, OperationType.LIST, 'adminNotifications');
     });
 
-    // Total Views
+    // Total Views & Browse Count
     const unsubTotal = onSnapshot(doc(db, 'siteStats', 'visitors'), (snapshot) => {
       if (snapshot.exists()) {
-        setTotalViews(snapshot.data().count);
+        const data = snapshot.data();
+        setTotalViews(data.count ?? 0);
+        setBrowseCount(data.browseCount || data.count || 0);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'siteStats/visitors');
@@ -184,41 +188,61 @@ export default function AdminDataManagement() {
         <p className="text-sm text-slate-500">Panel pemantauan sistem, akses keselamatan, notifikasi dan statistik aktiviti.</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-center justify-between">
+      {/* Stats Cards with Browse Count */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
+        <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider">Aktiviti Semasa</p>
-            <p className="text-2xl font-black text-emerald-800 mt-1">{activeViewers.length} Aktif</p>
+            <p className="text-[10px] text-emerald-700 font-extrabold uppercase tracking-wider">Pelawat Aktif</p>
+            <p className="text-2xl font-black text-emerald-800 mt-0.5">{activeViewers.length} Live</p>
           </div>
-          <div className="text-emerald-500 bg-emerald-100 p-2.5 rounded-lg">
+          <div className="text-emerald-500 bg-emerald-100 p-2.5 rounded-xl shrink-0">
             <User size={20} />
           </div>
         </div>
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
+
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs text-blue-700 font-bold uppercase tracking-wider">Jumlah Pelawat</p>
-            <p className="text-2xl font-black text-blue-800 mt-1">{totalViews !== null ? totalViews : '...'}</p>
+            <p className="text-[10px] text-blue-700 font-extrabold uppercase tracking-wider">Jumlah Pelawat</p>
+            <p className="text-2xl font-black text-blue-800 mt-0.5">{totalViews !== null ? totalViews : '...'}</p>
           </div>
-          <div className="text-blue-500 bg-blue-100 p-2.5 rounded-lg">
+          <div className="text-blue-500 bg-blue-100 p-2.5 rounded-xl shrink-0">
             <Eye size={20} />
           </div>
         </div>
-        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center justify-between">
+
+        {/* PROMINENT BROWSING COUNT CARD */}
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 p-4 rounded-2xl flex items-center justify-between shadow-xs">
           <div>
-            <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">Jumlah Rekod Akses</p>
-            <p className="text-2xl font-black text-indigo-800 mt-1">{visitorLogs.length} Log</p>
+            <p className="text-[10px] text-indigo-700 font-extrabold uppercase tracking-wider flex items-center gap-1">
+              <MousePointer size={12} className="text-indigo-600" /> Jumlah Layaran (Browse)
+            </p>
+            <p className="text-2xl font-black text-indigo-900 mt-0.5">
+              {browseCount !== null ? browseCount : (totalViews || visitorLogs.length)}
+            </p>
           </div>
-          <div className="text-indigo-500 bg-indigo-100 p-2.5 rounded-lg">
-            <Clock size={20} />
+          <div className="text-indigo-600 bg-indigo-100 p-2.5 rounded-xl shrink-0">
+            <BarChart3 size={20} />
           </div>
         </div>
-        <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex items-center justify-between">
+
+        <div className="bg-teal-50 border border-teal-100 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs text-amber-700 font-bold uppercase tracking-wider">Mesej Notifikasi</p>
-            <p className="text-2xl font-black text-amber-800 mt-1">{notifications.length} Simpan</p>
+            <p className="text-[10px] text-teal-700 font-extrabold uppercase tracking-wider">Log Akses Awam</p>
+            <p className="text-2xl font-black text-teal-800 mt-0.5">
+              {visitorLogs.filter(v => !v.isLoggedIn && !v.isOwner).length} Awam
+            </p>
           </div>
-          <div className="text-amber-500 bg-amber-100 p-2.5 rounded-lg">
+          <div className="text-teal-600 bg-teal-100 p-2.5 rounded-xl shrink-0">
+            <Globe size={20} />
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-amber-700 font-extrabold uppercase tracking-wider">Mesej Notifikasi</p>
+            <p className="text-2xl font-black text-amber-800 mt-0.5">{notifications.length} Alert</p>
+          </div>
+          <div className="text-amber-500 bg-amber-100 p-2.5 rounded-xl shrink-0">
             <Bell size={20} />
           </div>
         </div>
@@ -324,37 +348,79 @@ export default function AdminDataManagement() {
 
         {/* Access History List */}
         <section className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:col-span-1">
-          <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Clock className="text-indigo-500" size={18} />
-            Log Log Masuk & Akses
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <Clock className="text-indigo-500" size={18} />
+              Log Masuk & Layaran
+            </h3>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-[10px] font-bold">
+              <button
+                onClick={() => setLogFilter('all')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${logFilter === 'all' ? 'bg-white text-slate-900 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                Semua ({visitorLogs.length})
+              </button>
+              <button
+                onClick={() => setLogFilter('public')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${logFilter === 'public' ? 'bg-emerald-600 text-white shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                Awam ({visitorLogs.filter(v => !v.isLoggedIn && !v.isOwner).length})
+              </button>
+              <button
+                onClick={() => setLogFilter('admin')}
+                className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${logFilter === 'admin' ? 'bg-amber-500 text-slate-950 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                Admin
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-2.5 overflow-auto max-h-[450px] flex-1">
             {visitorLogs.length === 0 ? (
               <p className="text-slate-400 text-xs text-center py-8">Tiada rekod log akses.</p>
             ) : (
-              visitorLogs.slice(0, 40).map(v => {
-                const isOwner = v.isOwner || (v.isLoggedIn && v.email === 'muhaiminzeeismail@gmail.com');
-                return (
-                  <div key={v.id} className={`p-3 rounded-xl border text-xs transition-all ${isOwner ? 'bg-amber-50/70 border-amber-200 shadow-xs' : v.isLoggedIn ? 'bg-indigo-50/70 border-indigo-100' : 'bg-slate-50/70 border-slate-100'}`}>
-                    <div className="flex justify-between items-start mb-1.5">
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isOwner ? 'bg-amber-100 text-amber-800' : v.isLoggedIn ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-600'}`}>
-                        {isOwner ? '👑 Akses Owner' : v.isLoggedIn ? 'Google Login' : 'Akses Awam'}
-                      </span>
-                      <span className="text-[9px] font-mono text-slate-400">
-                        {v.entryTime?.toDate?.() ? v.entryTime.toDate().toLocaleString() : 'Baru sahaja'}
-                      </span>
-                    </div>
-                    {v.isLoggedIn ? (
-                      <div>
-                        <p className="font-bold text-slate-800">{v.displayName}</p>
-                        <p className="text-slate-500 font-mono text-[10px] mt-0.5">{v.email}</p>
+              visitorLogs
+                .filter(v => {
+                  const isOwner = v.isOwner || (v.isLoggedIn && v.email === 'muhaiminzeeismail@gmail.com');
+                  if (logFilter === 'public') return !v.isLoggedIn && !isOwner;
+                  if (logFilter === 'admin') return v.isLoggedIn || isOwner;
+                  return true;
+                })
+                .slice(0, 40)
+                .map(v => {
+                  const isOwner = v.isOwner || (v.isLoggedIn && v.email === 'muhaiminzeeismail@gmail.com');
+                  return (
+                    <div key={v.id} className={`p-3 rounded-xl border text-xs transition-all ${isOwner ? 'bg-amber-50/70 border-amber-200 shadow-xs' : v.isLoggedIn ? 'bg-indigo-50/70 border-indigo-100' : 'bg-emerald-50/40 border-emerald-100/60'}`}>
+                      <div className="flex justify-between items-start mb-1.5">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isOwner ? 'bg-amber-100 text-amber-800' : v.isLoggedIn ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {isOwner ? '👑 Akses Owner' : v.isLoggedIn ? 'Google Login' : '🌐 Akses Awam'}
+                        </span>
+                        <span className="text-[9px] font-mono text-slate-400">
+                          {v.entryTime?.toDate?.() ? v.entryTime.toDate().toLocaleString() : 'Baru sahaja'}
+                        </span>
                       </div>
-                    ) : (
-                      <p className="text-slate-500 font-mono text-[10px]">Session ID: {v.sessionId}</p>
-                    )}
-                  </div>
-                );
-              })
+                      {v.isLoggedIn ? (
+                        <div>
+                          <p className="font-bold text-slate-800">{v.displayName}</p>
+                          <p className="text-slate-500 font-mono text-[10px] mt-0.5">{v.email}</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-slate-600 font-medium text-[11px] flex items-center gap-1">
+                            <span>📱 Sesi Awam:</span> <span className="font-mono text-[10px] text-slate-500">{v.sessionId?.substring(0, 16)}...</span>
+                          </p>
+                          {v.page && (
+                            <span className="inline-block mt-1 text-[9px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-200/80 px-1.5 py-0.5 rounded">
+                              Halaman: {v.page}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
             )}
           </div>
         </section>

@@ -16,13 +16,22 @@ export default function VisitorStats() {
     const logsRef = collection(db, 'visitorLogs');
     const activeRef = doc(db, 'activeViewers', sessionId.current);
 
-    // Initialize/Increment Total
-    setDoc(counterRef, { count: increment(1) }, { merge: true })
+    // Initialize/Increment Total Visitors & Browse Count
+    setDoc(counterRef, { count: increment(1), browseCount: increment(1) }, { merge: true })
         .catch((error) => handleFirestoreError(error, OperationType.WRITE, 'siteStats/visitors'));
 
     // Initial Logging and Heartbeat as general guest
-    addDoc(logsRef, { sessionId: sessionId.current, entryTime: serverTimestamp() }).catch(console.error);
-    setDoc(activeRef, { sessionId: sessionId.current, lastSeen: serverTimestamp() }).catch(console.error);
+    addDoc(logsRef, { 
+        sessionId: sessionId.current, 
+        entryTime: serverTimestamp(),
+        userType: 'Public User',
+        page: 'Akses Awam Utama'
+    }).catch(console.error);
+    setDoc(activeRef, { 
+        sessionId: sessionId.current, 
+        lastSeen: serverTimestamp(),
+        userType: 'Public User'
+    }).catch(console.error);
 
     // Track user identity changes to enrich heartbeat and log access by Gmail
     const unsubAuth = onAuthStateChanged(auth, (user) => {
