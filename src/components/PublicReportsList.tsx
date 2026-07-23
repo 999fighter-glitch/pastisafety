@@ -49,7 +49,7 @@ export default function PublicReportsList({ pastis, submissions }: PublicReports
 
   // Match submission 
   const getSubmissionForPasti = (pastiId: string) => {
-    return submissions.find(s => s.pastiId?.toString() === pastiId.toString());
+    return submissions.find(s => s.pastiId?.toString() === pastiId.toString() && !s.isDemo);
   };
 
   // Status mapping functions

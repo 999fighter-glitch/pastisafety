@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, getDocs, doc, writeBatch, addDoc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, isUsingCustomFirebase, currentProjectId } from '../firebase';
-import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield, Download, Upload, Database, Sparkles, CheckCircle2, Key, Copy, Check, Terminal, ExternalLink } from 'lucide-react';
+import { Clock, User, Bell, Trash2, RefreshCw, Layers, AlertTriangle, Eye, Globe, MousePointer, BarChart3, Filter, Shield, Download, Upload, Database, Sparkles, CheckCircle2, Key, Copy, Check, Terminal, ExternalLink, FileText, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_PASTI_SEED = [
@@ -139,6 +139,27 @@ export default function AdminDataManagement() {
     badgeStyle: string;
     btnStyle: string;
   } | null>(null);
+
+  const [viewDataModal, setViewDataModal] = useState(false);
+  const [dbData, setDbData] = useState<{ pastis: any[]; feedbacks: any[] } | null>(null);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+
+  const handleFetchDbData = async () => {
+    setIsFetchingData(true);
+    setViewDataModal(true);
+    try {
+      const pastisSnap = await getDocs(collection(db, 'pastis'));
+      const feedbacksSnap = await getDocs(collection(db, 'feedbacks'));
+      setDbData({
+        pastis: pastisSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        feedbacks: feedbacksSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      });
+    } catch (err: any) {
+      alert("Ralat mengambil data pangkalan data: " + err.message);
+    } finally {
+      setIsFetchingData(false);
+    }
+  };
 
   useEffect(() => {
     // Visitor Logs
@@ -424,6 +445,31 @@ export default function AdminDataManagement() {
     }
   };
 
+  const [testResult, setTestResult] = useState<{ status: string; ms: number; message: string } | null>(null);
+  const handleTestFirebaseConnection = async () => {
+    setTestResult(null);
+    const startTime = performance.now();
+    try {
+      // Simple write & delete test or just read
+      const testRef = doc(collection(db, 'system_test'), 'ping');
+      await setDoc(testRef, { timestamp: new Date().toISOString() });
+      const endTime = performance.now();
+      const timeMs = Math.round(endTime - startTime);
+      setTestResult({
+        status: 'SUCCESS',
+        ms: timeMs,
+        message: `Sambungan ke pangkalan data berjaya! (Respons: ${timeMs}ms)`
+      });
+    } catch (err: any) {
+      const endTime = performance.now();
+      setTestResult({
+        status: 'FAILED',
+        ms: Math.round(endTime - startTime),
+        message: `Ralat sambungan: ${err.message}`
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1 pb-4 border-b border-slate-100">
@@ -680,8 +726,98 @@ export default function AdminDataManagement() {
             <Sparkles size={14} className={isSeeding ? "animate-spin" : ""} />
             {isSeeding ? "Penjadualan..." : "Auto-Seed 12 PASTI"}
           </button>
+
+          {/* Test Firebase Connection */}
+          <button
+            onClick={handleTestFirebaseConnection}
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all shadow-lg shadow-blue-600/20"
+            title="Uji sambungan Pangkalan Data Firebase dan kelajuan masa respons"
+          >
+            <RefreshCw size={14} className={testResult === null && isExporting ? "animate-spin" : ""} />
+            Uji Sambungan Firebase
+          </button>
+
+          {/* View Raw Database Data */}
+          <button
+            onClick={handleFetchDbData}
+            disabled={isFetchingData}
+            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all shadow-lg shadow-purple-600/20"
+            title="Papar data pangkalan data semasa"
+          >
+            <FileText size={14} className={isFetchingData ? "animate-spin" : ""} />
+            {isFetchingData ? "Memuat..." : "Lihat Data Pangkalan Data"}
+          </button>
         </div>
       </div>
+
+      {viewDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div className="bg-slate-900 p-4 flex items-center justify-between text-white shrink-0">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <Database size={16} className="text-purple-400" />
+                Data Pangkalan Data (Firestore)
+              </h3>
+              <button 
+                onClick={() => setViewDataModal(false)}
+                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-4 shrink-0 overflow-x-auto text-xs font-bold text-slate-700">
+              <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> 
+                Koleksi PASTI: {dbData?.pastis?.length || 0}
+              </div>
+              <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500" /> 
+                Koleksi Maklum Balas: {dbData?.feedbacks?.length || 0}
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-6 bg-slate-50 space-y-6">
+              {!dbData ? (
+                <div className="flex items-center justify-center h-40">
+                  <RefreshCw size={24} className="text-slate-400 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-sm text-slate-800">Koleksi: pastis</h4>
+                    <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl text-[10px] font-mono overflow-auto border border-slate-800 shadow-inner max-h-64">
+                      {JSON.stringify(dbData.pastis, null, 2)}
+                    </pre>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-sm text-slate-800">Koleksi: feedbacks</h4>
+                    <pre className="bg-slate-900 text-blue-400 p-4 rounded-xl text-[10px] font-mono overflow-auto border border-slate-800 shadow-inner max-h-96">
+                      {JSON.stringify(dbData.feedbacks, null, 2)}
+                    </pre>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {testResult && (
+        <div className={`p-4 rounded-xl border flex items-start gap-3 text-sm ${testResult.status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+          <div className="mt-0.5">
+            {testResult.status === 'SUCCESS' ? <CheckCircle2 size={18} className="text-emerald-500" /> : <AlertTriangle size={18} className="text-rose-500" />}
+          </div>
+          <div className="flex-1 space-y-1">
+            <h4 className="font-extrabold">{testResult.status === 'SUCCESS' ? 'Ujian Berjaya' : 'Ujian Gagal'}</h4>
+            <p className="font-medium text-xs opacity-90">{testResult.message}</p>
+            {testResult.status === 'SUCCESS' && (
+              <p className="text-[10px] font-mono font-bold bg-white/60 px-2 py-0.5 rounded-md inline-block border border-black/5">Masa Respons Pangkalan Data: {testResult.ms}ms</p>
+            )}
+          </div>
+          <button onClick={() => setTestResult(null)} className="text-slate-400 hover:text-slate-600">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Clean & Reset Actions Container */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

@@ -33,6 +33,8 @@ export interface Submission {
   fireExtinguishers?: EquipmentItem[];
 
   notificationReceived?: string;
+  isDemo?: boolean;
+  remark?: string;
   createdAt: any;
   updatedAt?: any;
 }

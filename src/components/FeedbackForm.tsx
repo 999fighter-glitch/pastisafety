@@ -89,6 +89,8 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
     lampuKecemasanList: EquipmentItem[];
     fireExtinguishers: EquipmentItem[];
     notificationReceived: string;
+    isDemo?: boolean;
+    remark?: string;
   }>({
     pastiId: '',
     name: '',
@@ -111,6 +113,8 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
       { id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }
     ],
     notificationReceived: 'BELUM DIHANTAR',
+    isDemo: false,
+    remark: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -302,6 +306,8 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
         lampuKecemasanList: [{ id: '1', label: 'Lampu Kecemasan Kelas', status: 'ADA', photoUrl: '' }],
         fireExtinguishers: [{ id: '1', label: 'Pemadam Api 1', expiryDate: '', serialNo: '', status: 'ADA', photoUrl: '' }],
         notificationReceived: 'BELUM DIHANTAR',
+        isDemo: false,
+        remark: '',
       });
 
       setTimeout(() => {
@@ -310,6 +316,41 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
     } else {
       setErrorMsg('Gagal menghantar laporan keselamatan. Sila semak sambungan internet anda.');
     }
+  };
+
+  const handleFillDemoData = () => {
+    // Select the first PASTI for demo if available
+    const demoPasti = pastis.length > 0 ? pastis[0] : null;
+    
+    // Set a complete sample data
+    setFormData({
+      id: undefined,
+      pastiId: demoPasti ? demoPasti.id : 'demo-pasti-123',
+      name: demoPasti ? demoPasti.name : 'PASTI Demo Al-Amin',
+      headTeacher: demoPasti ? demoPasti.headTeacher : 'Ustazah Sarah',
+      phone: demoPasti ? demoPasti.phone : '0198765432',
+      emergencyDoor: true,
+      exitLight: true,
+      lampuKecemasan: true,
+      extinguisherExpiryDate: '2026-12-31',
+      emergencyDoorsList: [
+        { id: '1', label: 'Pintu Kecemasan Utama', status: 'ADA', photoUrl: 'https://images.unsplash.com/photo-1596541223130-5d5644156784?q=80&w=150&auto=format&fit=crop' },
+        { id: '2', label: 'Pintu Kecemasan Belakang', status: 'ADA', photoUrl: 'https://images.unsplash.com/photo-1520188740392-67aca6327c1a?q=80&w=150&auto=format&fit=crop' }
+      ],
+      exitLightsList: [
+        { id: '1', label: 'Lampu Exit Utama', status: 'ADA', photoUrl: 'https://images.unsplash.com/photo-1574044692737-13351ec3c8f8?q=80&w=150&auto=format&fit=crop' }
+      ],
+      lampuKecemasanList: [
+        { id: '1', label: 'Lampu Kecemasan Kelas A', status: 'ADA', photoUrl: 'https://images.unsplash.com/photo-1527443195645-1133f7f28990?q=80&w=150&auto=format&fit=crop' }
+      ],
+      fireExtinguishers: [
+        { id: '1', label: 'Pemadam Api Debu Kering', expiryDate: '2026-12-31', serialNo: 'FE-26-001', status: 'ADA', photoUrl: 'https://images.unsplash.com/photo-1621213564177-336e147e411b?q=80&w=150&auto=format&fit=crop' },
+        { id: '2', label: 'Pemadam Api CO2', expiryDate: '2025-10-15', serialNo: 'FE-25-102', status: 'TIADA', photoUrl: '' }
+      ],
+      notificationReceived: 'BELUM DIHANTAR',
+      isDemo: true,
+      remark: 'Ini adalah data demo/sampel untuk tujuan ujian dan paparan.',
+    });
   };
 
   const handleResetForm = () => {
@@ -1264,23 +1305,46 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
                 </div>
               </div>
 
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full bg-slate-900 text-white px-5 py-3 rounded-xl font-bold hover:bg-slate-800 active:bg-slate-950 transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm font-semibold"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin text-emerald-400" />
-                    <span>Sedang Menyimpan...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={15} className="text-emerald-400" />
-                    <span>Hantar Maklum Balas</span>
-                  </>
-                )}
-              </button>
+              {formData.isDemo && (
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                  <label className="block text-xs font-bold text-amber-800 uppercase mb-2">Remark / Nota (Untuk Demo):</label>
+                  <textarea
+                    value={formData.remark || ''}
+                    onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                    className="w-full border border-amber-300 bg-white p-3 text-sm rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all resize-none h-20"
+                    placeholder="Masukkan nota tambahan (cth: Data ini dijana automatik untuk tujuan demonstrasi)..."
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleFillDemoData}
+                  className="w-full sm:w-auto bg-amber-100 text-amber-800 px-5 py-3 rounded-xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer text-sm border border-amber-300"
+                >
+                  <FileText size={15} className="text-amber-600" />
+                  <span>Isi Data Demo</span>
+                </button>
+
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full flex-1 bg-slate-900 text-white px-5 py-3 rounded-xl font-bold hover:bg-slate-800 active:bg-slate-950 transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm font-semibold"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin text-emerald-400" />
+                      <span>Sedang Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={15} className="text-emerald-400" />
+                      <span>Hantar Maklum Balas</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </motion.div>
           </div>

@@ -49,6 +49,8 @@ export default function Dashboard({ isAdmin, pastis, submissions, onUpdateStatus
   const [isBulkReminderOpen, setIsBulkReminderOpen] = useState(false);
   const [bulkReminderType, setBulkReminderType] = useState<1 | 2 | 3 | 'dynamic'>('dynamic');
   const [copied, setCopied] = useState(false);
+  
+  const [viewDemoData, setViewDemoData] = useState(false);
 
   // Helper to safely unpack state
   const normalizeStatus = (val: boolean | string | undefined): string => {
@@ -229,14 +231,43 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
     setSelectedSub(null);
   };
 
+  const filteredSubmissions = viewDemoData ? submissions.filter(s => s.isDemo) : submissions.filter(s => !s.isDemo);
+
   // Metrics summary computations
-  const totalSubmissions = submissions.length;
-  const countAdaDoor = submissions.filter(s => normalizeStatus(s.emergencyDoor) === 'ADA').length;
-  const countAdaLight = submissions.filter(s => normalizeStatus(s.exitLight) === 'ADA').length;
-  const countAdaLampuKecemasan = submissions.filter(s => normalizeStatus(s.lampuKecemasan) === 'ADA').length;
+  const totalSubmissions = filteredSubmissions.length;
+  const countAdaDoor = filteredSubmissions.filter(s => normalizeStatus(s.emergencyDoor) === 'ADA').length;
+  const countAdaLight = filteredSubmissions.filter(s => normalizeStatus(s.exitLight) === 'ADA').length;
+  const countAdaLampuKecemasan = filteredSubmissions.filter(s => normalizeStatus(s.lampuKecemasan) === 'ADA').length;
 
   return (
     <div className="w-full max-w-[710px] mx-auto md:ml-[30px] space-y-6">
+      <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+          <Sparkles size={16} className={viewDemoData ? "text-amber-500" : "text-slate-400"} />
+          <span>Mod Paparan Data:</span>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+          <button 
+            onClick={() => {
+              setViewDemoData(false);
+              setSelectedSubIds([]);
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${!viewDemoData ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Data Live Asli
+          </button>
+          <button 
+            onClick={() => {
+              setViewDemoData(true);
+              setSelectedSubIds([]);
+            }}
+            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${viewDemoData ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Data Demo
+          </button>
+        </div>
+      </div>
+
       {/* Overview Cards Panel */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-sm flex items-center gap-3">
@@ -280,7 +311,7 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
         </div>
       </div>
 
-      <ReportStatus pastis={pastis} submissions={submissions} />
+      <ReportStatus pastis={pastis} submissions={filteredSubmissions} />
 
       {/* Selection Action Bar */}
       {selectedSubIds.length > 0 && (
@@ -333,7 +364,7 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
             <p className="text-xs text-slate-400">Status kelulusan prasarana dan pematuhan keselamatan terkini.</p>
           </div>
           <div className="flex items-center gap-2">
-             {isAdmin && submissions.length > 0 && (
+             {isAdmin && filteredSubmissions.length > 0 && (
                 <button
                 onClick={() => setDeleteConfirm({ type: 'all' })}
                 className="text-[10px] bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-3 py-1.5 rounded-lg border border-rose-200 cursor-pointer"
@@ -355,10 +386,10 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
                 <th className="p-3 w-10 text-center">
                   <input
                     type="checkbox"
-                    checked={submissions.length > 0 && selectedSubIds.length === submissions.length}
+                    checked={filteredSubmissions.length > 0 && selectedSubIds.length === filteredSubmissions.length}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedSubIds(submissions.map(s => s.id));
+                        setSelectedSubIds(filteredSubmissions.map(s => s.id));
                       } else {
                         setSelectedSubIds([]);
                       }
@@ -377,14 +408,14 @@ _mesej dijana dari sistem oleh Keselamatan&Kesihatan Pasti Kuala Langat_`;
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-slate-100">
-              {submissions.length === 0 ? (
+              {filteredSubmissions.length === 0 ? (
                 <tr>
                   <td colSpan={isAdmin ? 9 : 8} className="p-8 text-center text-slate-400 italic">
                     Tiada rekod saringan dijumpai.
                   </td>
                 </tr>
               ) : (
-                submissions.map((sub: Submission) => {
+                filteredSubmissions.map((sub: Submission) => {
                   const doorStatus = normalizeStatus(sub.emergencyDoor);
                   const lightStatus = normalizeStatus(sub.exitLight);
                   const lampuStatus = normalizeStatus(sub.lampuKecemasan);
