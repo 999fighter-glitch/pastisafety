@@ -18,7 +18,7 @@ import PublicReportsList from './components/PublicReportsList';
 import VisitorStats from './components/VisitorStats';
 import UserGuide from './components/UserGuide';
 import { Pasti } from './types';
-import { ShieldCheck, ArrowRight, Loader2, BookOpen } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Loader2, BookOpen, Pin, PinOff, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -28,9 +28,20 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [showOwnerWelcomeModal, setShowOwnerWelcomeModal] = useState(false);
   const [view, setView] = useState<'dashboard' | 'feedback' | 'manage' | 'telegrams' | 'extinguisher-monitor' | 'reports-list' | 'admin' | 'guide'>('feedback');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNavPinned, setIsNavPinned] = useState(false);
   const [isIntroLoading, setIsIntroLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+
+  const handleNavMouseEnter = () => {
+    setIsSidebarOpen(true);
+  };
+
+  const handleNavMouseLeave = () => {
+    if (!isNavPinned) {
+      setIsSidebarOpen(false);
+    }
+  };
 
   // Notifications listener
   const addNotification = async (title: string, message: string, noLocalToast: boolean = false) => {
@@ -417,25 +428,59 @@ export default function App() {
           transition={{ duration: 0.5 }}
           className="flex h-screen bg-slate-50 font-sans text-slate-800 relative overflow-hidden"
         >
+          {/* Left edge hover trigger zone when sidebar is closed */}
+          {!isSidebarOpen && (
+            <div 
+              onMouseEnter={handleNavMouseEnter}
+              className="fixed top-0 left-0 bottom-0 w-3 z-30 cursor-pointer group flex items-center justify-center bg-transparent hover:bg-emerald-500/10 transition-colors"
+              title="Tuding tetikus di sini untuk Papar Menu Nav"
+            >
+              <div className="w-1 h-12 bg-emerald-500/30 rounded-full group-hover:bg-emerald-500 group-hover:h-20 transition-all" />
+            </div>
+          )}
+
           {/* Sidebar drawer/navigation */}
-          <aside className={`${isSidebarOpen ? 'flex w-64 p-6' : 'hidden w-0 p-0 overflow-hidden'} bg-slate-900 text-white flex-col z-20 shadow-2xl shrink-0 h-full fixed lg:relative`}>
+          <aside 
+            onMouseEnter={handleNavMouseEnter}
+            onMouseLeave={handleNavMouseLeave}
+            className={`${
+              isSidebarOpen 
+                ? 'flex w-64 p-6 translate-x-0 opacity-100 shadow-2xl' 
+                : 'hidden w-0 p-0 overflow-hidden -translate-x-full opacity-0 pointer-events-none'
+            } bg-slate-900 text-white flex-col z-40 shrink-0 h-full fixed lg:relative transition-all duration-300 ease-in-out border-r border-slate-800`}
+          >
             <div className="min-w-[200px]">
-              <h1 className="text-xl font-bold tracking-tight mb-8">PASTI <span className="text-emerald-400">Kuala Langat</span></h1>
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-xl font-bold tracking-tight">PASTI <span className="text-emerald-400">Kuala Langat</span></h1>
+                <button
+                  onClick={() => setIsNavPinned(!isNavPinned)}
+                  className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer flex items-center gap-1 ${
+                    isNavPinned 
+                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300' 
+                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={isNavPinned ? "Menu Disemat (Klik untuk Auto-Sembunyi pada hover)" : "Semat Menu (Kekal Terbuka)"}
+                >
+                  <Pin size={13} className={isNavPinned ? "fill-emerald-400 text-emerald-400" : ""} />
+                  <span className="text-[10px] font-medium">{isNavPinned ? 'Pinned' : 'Auto'}</span>
+                </button>
+              </div>
+
               <nav className="space-y-2">
                   <button 
-                    onClick={() => { setView('feedback'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('feedback'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'feedback' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     Borang Maklum Balas
                   </button>
                   <button 
-                    onClick={() => { setView('reports-list'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('reports-list'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'reports-list' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     📋 Rekod Laporan (Awam)
                   </button>
                   <button 
-                    onClick={() => { setView('guide'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                    onClick={() => { setView('guide'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                     className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'guide' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                   >
                     📖 Panduan Pengguna
@@ -443,20 +488,20 @@ export default function App() {
                   {user && (
                     <>
                       <button 
-                        onClick={() => { setView('dashboard'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('dashboard'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'dashboard' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Dashboard
                       </button>
                       <button 
-                        onClick={() => { setView('manage'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('manage'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'manage' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Pengurusan Kontak PASTI
                       </button>
                       {isAdmin && (
                         <button 
-                          onClick={() => { setView('admin'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                          onClick={() => { setView('admin'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                           className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'admin' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                         >
                           ⚙️ Data Management
@@ -464,14 +509,14 @@ export default function App() {
                       )}
                       {isAdmin && (
                         <button 
-                          onClick={() => { setView('extinguisher-monitor'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                          onClick={() => { setView('extinguisher-monitor'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                           className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'extinguisher-monitor' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                         >
                           📅 Kalendar & Pemadam Api
                         </button>
                       )}
                       <button 
-                        onClick={() => { setView('telegrams'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} 
+                        onClick={() => { setView('telegrams'); if (window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }} 
                         className={`w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${view === 'telegrams' ? 'bg-emerald-600 font-semibold text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                       >
                         Simulasi Bot Telegram
@@ -480,7 +525,7 @@ export default function App() {
                   )}
               </nav>
             </div>
-            <div className="mt-auto min-w-[200px]">
+            <div className="mt-auto min-w-[200px] pt-4 border-t border-slate-800">
                 {user ? (
                   <button 
                     onClick={() => { 
@@ -514,30 +559,23 @@ export default function App() {
 
           {/* Main content viewport */}
           <main 
-            onClick={() => { if (isSidebarOpen && window.innerWidth < 1024) setIsSidebarOpen(false); }}
+            onClick={() => { if (isSidebarOpen && window.innerWidth < 1024 && !isNavPinned) setIsSidebarOpen(false); }}
             className="flex-1 overflow-auto flex flex-col"
           >
             <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(!isSidebarOpen); }} 
-                  className="mr-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-950 font-bold text-xs transition-all cursor-pointer"
-                  title={isSidebarOpen ? "Sembunyi Menu" : "Papar Menu"}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setIsSidebarOpen(!isSidebarOpen); 
+                    if (isSidebarOpen) setIsNavPinned(false);
+                  }} 
+                  onMouseEnter={handleNavMouseEnter}
+                  className="mr-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-emerald-300 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-950 font-bold text-xs transition-all cursor-pointer shadow-2xs"
+                  title="Tuding tetikus untuk Papar Menu, atau Klik untuk Buka/Tutup"
                 >
-                  {isSidebarOpen ? (
-                    <>
-                      <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span className="hidden sm:inline">Sembunyi Menu</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 text-slate-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                      <span className="hidden sm:inline">Papar Menu</span>
-                    </>
-                  )}
+                  <Menu className="w-4 h-4 text-emerald-600" />
+                  <span className="hidden sm:inline">{isSidebarOpen ? "Sembunyi Menu" : "Papar Menu Nav"}</span>
+                  <span className="text-[10px] text-slate-400 font-normal hidden lg:inline ml-0.5">(Hover)</span>
                 </button>
                 <span className="text-slate-500 text-xs sm:text-sm font-medium">{user ? `Selamat Datang, ${user.displayName} (${user.email})` : 'Mod Awam'}</span>
                 <div className="ml-auto">
@@ -548,7 +586,7 @@ export default function App() {
             <div className="p-8 space-y-6 max-w-7xl mx-auto flex-1">
                 {view === 'feedback' && (
                   <motion.div initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
-                    <FeedbackForm pastis={pastis} submissions={submissions} onSubmit={handleFeedbackSubmit} />
+                    <FeedbackForm pastis={pastis} submissions={submissions} onSubmit={handleFeedbackSubmit} isAdmin={!!isAdmin} />
                   </motion.div>
                 )}
                 {view === 'reports-list' && (

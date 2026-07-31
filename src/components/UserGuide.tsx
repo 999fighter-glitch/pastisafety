@@ -14,7 +14,10 @@ import {
   Database,
   ArrowRight,
   Info,
-  Server
+  Server,
+  Copy,
+  Check,
+  MessageSquare
 } from 'lucide-react';
 
 interface UserGuideProps {
@@ -24,7 +27,37 @@ interface UserGuideProps {
 }
 
 export default function UserGuide({ user, isAdmin, setView }: UserGuideProps) {
-  const [activeTab, setActiveTab] = useState<'about' | 'public' | 'admin'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'public' | 'admin' | 'whatsapp'>('about');
+  const [copiedText, setCopiedText] = useState(false);
+
+  const whatsappMessage = `*PEMBERITAHUAN & HEBAHAN MAKLUM BALAS KESELAMATAN PASTI KUALA LANGAT*
+
+Assalamu'alaikum WBT dan Salam Sejahtera,
+
+Diberitahukan kepada semua **Muallimah PASTI Kawasan Kuala Langat**,
+
+Unit Keselamatan dan Kesihatan PASTI Kawasan Kuala Langat memohon kerjasama daripada semua Muallimah untuk melengkapkan **Borang Saringan Maklum Balas Keselamatan & Kelengkapan Kecemasan** cawangan masing-masing.
+
+Kerjasama ini amat penting bagi memudahkan pihak Unit Keselamatan mengambil tindakan susulan dan memastikan tahap keselamatan cawangan PASTI berada dalam keadaan terbaik.
+
+📌 *Sila isi borang maklum balas melalui pautan di bawah:*
+🔗 https://pasti-safety-kualalangat.netlify.app/
+
+⏰ *Tarikh Akhir Maklum Balas (Due Date):*
+*10 Ogos 2026*
+
+Diharapkan semua Muallimah dari seluruh PASTI Kawasan Kuala Langat dapat memberikan kerjasama sepenuhnya demi keselamatan bersama.
+
+Sekian, terima kasih.
+
+*Unit Keselamatan dan Kesihatan*
+*PASTI Kawasan Kuala Langat*`;
+
+  const handleCopyText = () => {
+    navigator.clipboard.writeText(whatsappMessage);
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 3000);
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-xl overflow-hidden" id="user-guide-container">
@@ -97,6 +130,17 @@ export default function UserGuide({ user, isAdmin, setView }: UserGuideProps) {
         >
           <Lock size={14} className={activeTab === 'admin' ? 'text-emerald-600' : 'text-slate-400'} />
           Akses Pentadbir (Admin)
+        </button>
+        <button
+          onClick={() => setActiveTab('whatsapp')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'whatsapp'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-100'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <MessageSquare size={14} className={activeTab === 'whatsapp' ? 'text-white' : 'text-emerald-600'} />
+          Teks Hebahan WhatsApp
         </button>
       </div>
 
@@ -319,6 +363,47 @@ export default function UserGuide({ user, isAdmin, setView }: UserGuideProps) {
                 <span>Kembali Ke Borang Utama</span>
                 <ArrowRight size={13} />
               </button>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'whatsapp' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <div className="border-l-4 border-emerald-500 pl-4 py-1 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-extrabold text-slate-800">Teks Mesej Hebahan WhatsApp</h2>
+                <p className="text-xs text-slate-500">Templat khas untuk disalin dan dihantar ke Kumpulan WhatsApp Muallimah PASTI Kawasan Kuala Langat.</p>
+              </div>
+              <button
+                onClick={handleCopyText}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 px-4 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                {copiedText ? <Check size={14} className="text-emerald-200" /> : <Copy size={14} />}
+                <span>{copiedText ? 'Telah Disalin!' : 'Salin Mesej'}</span>
+              </button>
+            </div>
+
+            <div className="bg-emerald-950/5 border border-emerald-200/80 rounded-2xl p-6 relative">
+              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans text-xs md:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed select-all">
+                {whatsappMessage}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                <span>💡 Boleh terus salin dan sebar melalui WhatsApp Group PASTI.</span>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-3.5 rounded-lg transition-all"
+                >
+                  <MessageSquare size={13} />
+                  <span>Buka di WhatsApp</span>
+                </a>
+              </div>
             </div>
           </motion.div>
         )}

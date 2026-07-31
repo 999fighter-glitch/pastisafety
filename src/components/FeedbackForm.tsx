@@ -33,6 +33,7 @@ interface FeedbackFormProps {
   pastis: Pasti[];
   submissions: any[];
   onSubmit: (data: any) => Promise<boolean>;
+  isAdmin?: boolean;
 }
 
 // Compress uploaded image for fast & safe Firestore storage
@@ -73,7 +74,7 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
-export default function FeedbackForm({ pastis, submissions, onSubmit }: FeedbackFormProps) {
+export default function FeedbackForm({ pastis, submissions, onSubmit, isAdmin }: FeedbackFormProps) {
   const [formData, setFormData] = useState<{
     id?: string;
     pastiId: string;
@@ -1377,19 +1378,21 @@ export default function FeedbackForm({ pastis, submissions, onSubmit }: Feedback
               )}
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={handleFillDemoData}
-                  className="w-full sm:w-auto bg-amber-100 text-amber-800 px-5 py-3 rounded-xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer text-sm border border-amber-300"
-                >
-                  <FileText size={15} className="text-amber-600" />
-                  <span>Isi Data Demo</span>
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleFillDemoData}
+                    className="w-full sm:w-auto bg-amber-100 text-amber-800 px-5 py-3 rounded-xl font-bold hover:bg-amber-200 active:bg-amber-300 transition-all shadow-sm active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer text-sm border border-amber-300"
+                  >
+                    <FileText size={15} className="text-amber-600" />
+                    <span>Isi Data Demo</span>
+                  </button>
+                )}
 
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full flex-1 bg-slate-900 text-white px-5 py-3 rounded-xl font-bold hover:bg-slate-800 active:bg-slate-950 transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm font-semibold"
+                  className={`w-full ${isAdmin ? 'flex-1' : 'w-full'} bg-slate-900 text-white px-5 py-3 rounded-xl font-bold hover:bg-slate-800 active:bg-slate-950 transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm font-semibold`}
                 >
                   {isSubmitting ? (
                     <>
